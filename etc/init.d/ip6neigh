@@ -1,0 +1,18 @@
+#!/bin/sh /etc/rc.common
+
+START=96
+
+start() {
+	SERVICE_DAEMONIZE=1
+	service_start /root/ip6neigh_mon.sh -s
+}
+
+stop() {
+	killall ip6neigh_mon.sh 2>/dev/null
+}
+
+restart() {
+	stop
+	rm /tmp/hosts/ip6neigh 2>/dev/null
+	start
+}
