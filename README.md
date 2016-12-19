@@ -50,7 +50,7 @@ manually with
 
 ## Contributors
 
-The script is written by Andre L. Suggestions, and additions or suggestions are welcome.
+The script is written by Andre L. Suggestions, and additions are welcome.
 
 ## License
 
