@@ -1,6 +1,6 @@
 #!/bin/sh
 
 [ "$ACTION" = "ifup" ] || exit 0
-[ "$INTERFACE" = "lan" -o "$INTERFACE" = "wan6" ] || exit 0
+[ "$INTERFACE" = "lan" ] || [ "$INTERFACE" = "wan6" ] || exit 0
 
 /etc/init.d/ip6neigh enabled && /etc/init.d/ip6neigh restart

@@ -71,7 +71,7 @@ process() {
 
 	case "$status" in
 		#Neighbor is unreachable. Remove it from hosts file.
-		"FAILED") remove $addr ;;
+		"FAILED") remove "$addr" ;;
 
 		#Neighbor is reachable. Must be added to hosts file if it is not there yet.
 		"REACHABLE")
@@ -79,12 +79,14 @@ process() {
 			grep -q "^$addr " /tmp/hosts/* && return 0
 
 			#Look for a DHCPv6 lease with a DUID that matches the neighbor's MAC address.
-			local match=$(echo "$mac" | tr -d ':')
-			local name=$(grep -E "^# ${LAN_DEV} .{16}${match} " /tmp/hosts/odhcpd | cut -d ' ' -f5)
+			local match
+			local name
+			match=$(echo "$mac" | tr -d ':')
+			name=$(grep -E "^# ${LAN_DEV} .{16}${match} " /tmp/hosts/odhcpd | cut -d ' ' -f5)
 
 			#If couldn't find a match in DHCPv6 leases then look into the DHCPv4 leases file.
 			if [ -z "$name" ]; then
-				name=$(grep $mac /tmp/dhcp.leases | cut -d " " -f4)
+				name=$(grep "$mac" /tmp/dhcp.leases | cut -d " " -f4)
 			fi
 
 			#If it can't get a name for the address, do nothing.
@@ -92,10 +94,10 @@ process() {
 			local suffix=""
 
 			#Check address type
-			if [ ${addr:0:4} = "fe80" ]; then
+			if [ "${addr:0:4}" = "fe80" ]; then
 				#Is link-local. Append corresponding label.
 				suffix="${LL_LABEL}"
-			elif [ ${addr:0:2} = "fd" ]; then
+			elif [ "${addr:0:2}" = "fd" ]; then
 				#Is ULA. Append corresponding label.
 				suffix="${ULA_LABEL}"
 				
@@ -129,7 +131,7 @@ process() {
 			name="${name}${suffix}.${DOMAIN}"
 
 			#Adds entry to hosts file
-			add $name $addr
+			add "$name" "$addr"
 		;;
 	esac
 }
@@ -140,9 +142,9 @@ config_host() {
 	local mac
 	local slaac
 
-	config_get name $1 name
-	config_get mac $1 mac
-	config_get slaac $1 slaac
+	config_get name "$1" name
+	config_get mac "$1" mac
+	config_get slaac "$1" slaac
 
 	#Ignore entry if required options are absent.
 	if [ -z "$name" ] || [ -z "$mac" ] || [ -z "$slaac" ]; then
@@ -173,8 +175,8 @@ config_host() {
 #Finds ULA and global prefixes on LAN interface.
 ula_cidr=$(ip -6 addr show $LAN_DEV scope global 2>/dev/null | grep "inet6" | grep -v "dynamic" | awk '{print $2}')
 pub_cidr=$(ip -6 addr show $LAN_DEV scope global dynamic 2>/dev/null | grep inet6 | awk '{print $2}')
-ula_prefix=$(echo $ula_cidr | cut -d ":" -f1-4)
-pub_prefix=$(echo $pub_cidr | cut -d ":" -f1-4)
+ula_prefix=$(echo "$ula_cidr" | cut -d ":" -f1-4)
+pub_prefix=$(echo "$pub_cidr" | cut -d ":" -f1-4)
 
 #Process /etc/config/dhcp an look for hosts with 'slaac' options set
 echo "#Predefined SLAAC addresses" > /tmp/hosts/ip6neigh
