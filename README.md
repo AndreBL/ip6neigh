@@ -18,7 +18,7 @@ IPv6 addresses are difficult to remember. DNS provides an abstraction layer, so 
 
 1. Create script `/root/ip6neigh_mon.sh` . If you want to store it in a different place, you'll need to change the path in the init.d script.
 
-    Script code is at: (ip6neigh_mon.sh)[https://github.com/AndreBL/ip6neigh/blob/master/etc/init.d/ip6neigh]
+    Script code is at: [ip6neigh_mon.sh](https://github.com/AndreBL/ip6neigh/blob/master/ip6neigh_mon.sh)
 	
 	Make it executable with:
 	
