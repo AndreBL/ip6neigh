@@ -186,7 +186,7 @@ echo -e "\n#Detected IPv6 neighbors" >> /tmp/hosts/ip6neigh
 killall -1 dnsmasq
 
 #Infinite loop. Keeps monitoring changes in IPv6 neighbor's reachability status and call process() routine.
-ip -6 monitor neigh dev br-lan |
+ip -6 monitor neigh dev $LAN_DEV |
 	while IFS= read -r line
 	do
 		process $line
