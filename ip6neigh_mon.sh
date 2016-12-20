@@ -173,8 +173,8 @@ config_host() {
 }
 
 #Finds ULA and global prefixes on LAN interface.
-ula_cidr=$(ip -6 addr show $LAN_DEV scope global 2>/dev/null | grep "inet6" | grep -v "dynamic" | awk '{print $2}')
-pub_cidr=$(ip -6 addr show $LAN_DEV scope global dynamic 2>/dev/null | grep inet6 | awk '{print $2}')
+ula_cidr=$(ip -6 addr show $LAN_DEV scope global 2>/dev/null | grep "inet6" | grep -m 1 -v "dynamic" | awk '{print $2}')
+pub_cidr=$(ip -6 addr show $LAN_DEV scope global dynamic 2>/dev/null | grep -m 1 inet6 | awk '{print $2}')
 ula_prefix=$(echo "$ula_cidr" | cut -d ":" -f1-4)
 pub_prefix=$(echo "$pub_cidr" | cut -d ":" -f1-4)
 
