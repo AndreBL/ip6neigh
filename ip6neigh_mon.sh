@@ -16,7 +16,7 @@ readonly GUA_LABEL=".PUB"
 #Label for addresses with EUI-64 interface identifier when the same name already exists in another hosts file
 readonly EUI64_LABEL=".SLAAC"
 
-#Label for temporary addresses and other addresses not known to have a predicted interface identifier
+#Label for temporary addresses and other addresses not known to have a predictable interface identifier
 readonly TMP_LABEL=".TMP"
 
 #DNS suffix to append
@@ -78,15 +78,15 @@ process() {
 			#Ignore if this IPv6 address already exists in any hosts file.
 			grep -q "^$addr " /tmp/hosts/* && return 0
 
-			#Look for a DHCPv6 lease with a DUID that matches the neighbor's MAC address.
+			#Look for a DHCPv6 lease with DUID-LL or DUID-LLT matching the neighbor's MAC address.
 			local match
 			local name
 			match=$(echo "$mac" | tr -d ':')
-			name=$(grep -E "^# ${LAN_DEV} .{16}${match} " /tmp/hosts/odhcpd | cut -d ' ' -f5)
+			name=$(grep -m 1 -E "^# ${LAN_DEV} (00010001.{8}|00030001)${match} " /tmp/hosts/odhcpd | cut -d ' ' -f5)
 
 			#If couldn't find a match in DHCPv6 leases then look into the DHCPv4 leases file.
 			if [ -z "$name" ]; then
-				name=$(grep "$mac" /tmp/dhcp.leases | cut -d " " -f4)
+				name=$(grep -m 1 " $mac " /tmp/dhcp.leases | cut -d ' ' -f4)
 			fi
 
 			#If it can't get a name for the address, do nothing.
@@ -184,7 +184,7 @@ config_load dhcp
 config_foreach config_host host
 echo -e "\n#Detected IPv6 neighbors" >> /tmp/hosts/ip6neigh
 
-#Ask dnsmasq to reload hosts files.
+#Send signal to dnsmasq to reload hosts files.
 killall -1 dnsmasq
 
 #Infinite loop. Keeps monitoring changes in IPv6 neighbor's reachability status and call process() routine.
