@@ -3,16 +3,22 @@
 START=96
 
 start() {
+	pgrep ip6neigh_mon.sh && return 0
+
 	SERVICE_DAEMONIZE=1
 	service_start /root/ip6neigh_mon.sh -s
+
+	return 0
 }
 
 stop() {
 	killall ip6neigh_mon.sh 2>/dev/null
+	return 0
 }
 
 restart() {
 	stop
-	rm /tmp/hosts/ip6neigh 2>/dev/null
+	sleep 1
 	start
+	return 0
 }

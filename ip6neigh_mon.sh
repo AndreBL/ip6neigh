@@ -16,33 +16,31 @@
 #
 #	by André Lange		Dec 2016
 
+#Dependencies
 . /lib/functions.sh
+. /lib/functions/network.sh
 
-#LAN interface name
-readonly LAN_DEV="br-lan"
+#Loads UCI configuration file
+reset_cb
+config_load ip6neigh
+config_get LAN_IFACE config interface lan
+config_get LL_LABEL config ll_label LL
+config_get ULA_label config ula_label
+config_get gua_label config gua_label
+config_get EUI64_LABEL config eui64_label SLAAC
+config_get TMP_LABEL config tmp_label TMP
+config_get PROBE_EUI64 config probe_eui64 1
+config_get UNKNOWN config unknown "Unknown-"
+config_get_bool LOG config log 0
 
-#PRIMARY LABELS
-
-#Label for link-local addresses
-readonly LL_LABEL=".LL"
-
-#Label for unique local addresses
-readonly ULA_LABEL=""
-
-#Label for globally unique addresses
-readonly GUA_LABEL=".PUB"
-
-#SECONDARY LABELS
-
-#Label for addresses with EUI-64 interface identifier when the same name already exists in another hosts file
-readonly EUI64_LABEL=".SLAAC"
-
-#Label for temporary addresses and other addresses not known to have a predictable interface identifier
-readonly TMP_LABEL=".TMP"
-
+#Gets the physical device
+network_get_physdev LAN_DEV "$LAN_IFACE"
 
 #DNS suffix to append
-readonly DOMAIN=$(uci get dhcp.@dnsmasq[0].domain)
+config_load dhcp
+config_get DOMAIN dhcp domain lan
+
+[ "$LOG" -gt 0 ] && logger -t ip6neigh "Starting ip6neigh script for physdev $LAN_DEV with domain $DOMAIN"
 
 #Adds entry to hosts file
 add() {
@@ -51,7 +49,9 @@ add() {
 	echo "$addr $name" >> /tmp/hosts/ip6neigh
 	killall -1 dnsmasq
 
-	logger -t DEBUG "Added $addr $name"
+	[ "$LOG" -gt 0 ] && logger -t ip6neigh "Added: $name $addr"
+	
+	return 0
 }
 
 #Removes entry from hosts file
@@ -62,7 +62,8 @@ remove() {
 	grep -v "^$addr " /tmp/hosts/ip6neigh > /tmp/ip6neigh
 	mv /tmp/ip6neigh /tmp/hosts/ip6neigh
 
-	logger -t DEBUG "Removed $addr"
+	[ "$LOG" -gt 0 ] && logger -t ip6neigh "Removed: $addr"
+	return 0
 }
 
 #Returns 0 if the supplied name already exists in another hosts file
@@ -81,7 +82,55 @@ is_eui64() {
 	return "$?"	
 }
 
-#Process updates to neighbors table
+#Generates EUI-64 interface identifier based on MAC address
+gen_eui64() {
+		local mac=$(echo "$2" | tr -d ':')
+		local iid1="${mac:0:4}"
+		local iid2="${mac:4:2}ff:fe${mac:6:2}:${mac:8:4}"
+
+		#Flip U/L bit
+		iid1=$(printf %x $((0x${iid1} ^ 0x0200)))
+		
+		eval "$1=${iid1}:${iid2}"
+		return 0
+}
+
+#Probe addresses with EUI-64 interface identifier based on the supplied MAC.
+probe_eui64() {
+	local mac="$1"
+	local scope="$2"
+	
+	#Generates EUI-64 interface identifier
+	local iid
+	gen_eui64 iid "$mac"
+	
+	#Select addresses for probing
+	local list=""
+	if [ "$PROBE_EUI64" = "1" ] && [ "$scope" != 0 ]; then
+		list="fe80::${iid} "
+	fi
+	if [ "$PROBE_EUI64" = "1" ] || [ "$scope" = 1 ]; then
+		list="${list}${ula_prefix}:${iid} "
+	fi
+	if [ "$PROBE_EUI64" = "1" ] || [ "$scope" = 2 ]; then
+		list="${list}${pub_prefix}:${iid}"
+	fi
+	
+	#Exit if there is nothing to probe.
+	[ -n "$list" ] || return 0
+	
+	[ "$LOG" -gt 0 ] && logger -t ip6neigh "Probing addresses for MAC ${mac}: ${list}"
+	
+	#Ping each address once
+	local addr
+	IFS=' '
+	for addr in $list; do
+		[ -n "$addr" ] && ping6 -W 1 -c 1 "$addr" >/dev/null 2>/dev/null
+	done
+	return 0
+}
+
+#Main routine: Process the changes in reachability status.
 process() {
 	local addr="$1"
 	local mac="$3"
@@ -108,17 +157,26 @@ process() {
 
 			#If couldn't find a match in DHCPv6 leases then look into the DHCPv4 leases file.
 			if [ -z "$name" ]; then
-				name=$(grep -m 1 " $mac [^ ]{7,15} ([^*])" /tmp/dhcp.leases | cut -d ' ' -f4)
+				name=$(grep -m 1 -E " $mac [^ ]{7,15} ([^*])" /tmp/dhcp.leases | cut -d ' ' -f4)
+
 			fi
 
-			#If it can't get a name for the address, do nothing.
-			[ -n "$name" ] || return 0
-			local suffix=""
+			#If it can't get a name for the address, create one based on MAC address.
+			if [ -z "$name" ]; then
+				[ "${UNKNOWN}" != 0 ] || return 0;
+				local nic
+				nic=$(echo "$match" | tail -c 7)
+				name="${UNKNOWN}${nic}"
+			fi
 
-			#Check address type
+			#Check address type and assign proper labels.
+			local suffix=""
 			if [ "${addr:0:4}" = "fe80" ]; then
 				#Is link-local. Append corresponding label.
 				suffix="${LL_LABEL}"
+				
+				#Probe for MAC-based addresses with the same prefix.
+				[ "$PROBE" != "0" ] && probe_eui64 "$mac" 0	
 			elif [ "${addr:0:2}" = "fd" ]; then
 				#Is ULA. Append corresponding label.
 				suffix="${ULA_LABEL}"
@@ -128,10 +186,14 @@ process() {
 					#If it is and the same name already exists in another hosts file, append EUI-64 label.
 					if name_exists "$name" "$suffix" ; then
 						suffix="${EUI64_LABEL}${suffix}"
+						[ "$LOG" -gt 0 ] && logger -t ip6neigh "Name $name already exists in another hosts file with IPv6 address. Appending label: ${EUI64_LABEL}"
 					fi
 				else
-					#Interface identifier is not EUI-64. Treat it as temporary address and append the corresponding label.
+					#Interface identifier is not EUI-64. #Adds temporary address label.
 					suffix="${TMP_LABEL}${suffix}"
+					
+					#Probe for MAC-based addresses with the same prefix.
+					[ "$PROBE" != "0" ] && probe_eui64 "$mac" 1
 				fi
 			else
 				#The address is globally unique. Append corresponding label.
@@ -142,20 +204,25 @@ process() {
 					#If it is and the same name already exists in another hosts file, append EUI-64 label.
 					if name_exists "$name" "$suffix" ; then
 						suffix="${EUI64_LABEL}${suffix}"
+						[ "$LOG" -gt 0 ] && logger -t ip6neigh "Name $name already exists in another hosts file with IPv6 address. Appending label: ${EUI64_LABEL}"
 					fi
 				else
-					#Interface identifier is not EUI-64. Treat it as temporary address and append the corresponding label.
+					#Interface identifier is not EUI-64. #Adds temporary address label.
 					suffix="${TMP_LABEL}${suffix}"
+					
+					#Probe for MAC-based addresses with the same prefix.
+					[ "$PROBE" != "0" ] && probe_eui64 "$mac" 2
 				fi 
 			fi
 
 			#Cat strings to get FQDN
-			name="${name}${suffix}.${DOMAIN}"
+			local fqdn="${name}${suffix}.${DOMAIN}"
 
 			#Adds entry to hosts file
-			add "$name" "$addr"
+			add "$fqdn" "$addr"
 		;;
 	esac
+	return 0
 }
 
 #Process entry in /etc/config/dhcp
@@ -173,34 +240,58 @@ config_host() {
 		return 0
 	fi
 
-	local host
+	local iid
 
 	#Check if slaac flag is set
 	if [ "$slaac" = "1" ]; then
 		#Generates EUI-64 interface identifier based on MAC entry
-		mac=$(echo "$mac" | tr -d ':')
-		local host1="${mac:0:4}"
-		local host2="${mac:4:2}ff:fe${mac:6:2}:${mac:8:4}"
-		host1=$(printf %x $((0x${host1} ^ 0x0200)))
-		host="${host1}:${host2}"
+		gen_eui64 iid "$mac"
 	elif [ "$slaac" != "0" ]; then
 		#slaac option carries a custom interface identifier. Just copy it.
-		host="$slaac"
+		iid="$slaac"
 	fi
+	
+	[ "$LOG" -gt 0 ] && logger -t ip6neigh "Generating predefined SLAAC addresses for $name with IID $iid"
 
 	#Creates hosts file entries with link-local, ULA and GUA prefixes with the same interface identifier.
-	echo "fe80::${host} ${name}${LL_LABEL}.${DOMAIN}" >> /tmp/hosts/ip6neigh
-	[ -n "$ula_prefix" ] && echo "${ula_prefix}:${host} ${name}${ULA_LABEL}.${DOMAIN}" >> /tmp/hosts/ip6neigh
-	[ -n "$pub_prefix" ] && echo "${pub_prefix}:${host} ${name}${GUA_LABEL}.${DOMAIN}" >> /tmp/hosts/ip6neigh
+	echo "fe80::${iid} ${name}${LL_LABEL}.${DOMAIN}" >> /tmp/hosts/ip6neigh
+	[ -n "$ula_prefix" ] && echo "${ula_prefix}:${iid} ${name}${ULA_LABEL}.${DOMAIN}" >> /tmp/hosts/ip6neigh
+	[ -n "$pub_prefix" ] && echo "${pub_prefix}:${iid} ${name}${GUA_LABEL}.${DOMAIN}" >> /tmp/hosts/ip6neigh
 }
 
 #Finds ULA and global prefixes on LAN interface.
-ula_cidr=$(ip -6 addr show $LAN_DEV scope global 2>/dev/null | grep "inet6" | grep -m 1 -v "dynamic" | awk '{print $2}')
-pub_cidr=$(ip -6 addr show $LAN_DEV scope global dynamic 2>/dev/null | grep -m 1 inet6 | awk '{print $2}')
+ula_cidr=$(ip -6 addr show "$LAN_DEV" scope global 2>/dev/null | grep "inet6 fd" | grep -m 1 -v "dynamic" | awk '{print $2}')
+pub_cidr=$(ip -6 addr show "$LAN_DEV" scope global dynamic 2>/dev/null | grep -m 1 -E "inet6 ([^fd])" | awk '{print $2}')
 ula_prefix=$(echo "$ula_cidr" | cut -d ":" -f1-4)
 pub_prefix=$(echo "$pub_cidr" | cut -d ":" -f1-4)
 
+#Decides if the GUAs should get a label based in config file and the presence of ULAs
+if [ -n "$gua_label" ]; then
+	#Use label specified in config file.
+	GUA_LABEL="$gua_label"
+	[ "$LOG" -gt 0 ] && logger -t ip6neigh "Using custom label for GUAs: ${GUA_LABEL}"
+else
+	#No label has been specified for GUAs. Check if the network setup has ULAs.
+	if [ -n "$ula_prefix" ]; then
+		#Yes. Use default label for GUAs.
+		GUA_LABEL="PUB"
+		[ "$LOG" -gt 0 ] && logger -t ip6neigh "Network has ULA prefix ${ula_prefix}::/64. Using default label for GUAs: ${GUA_LABEL}"
+	else
+		#No ULAs. So do not use label for GUAs.
+		GUA_LABEL=""
+		[ "$LOG" -gt 0 ] && logger -t ip6neigh "Network does not have ULA prefix. Clearing label for GUAs."
+	fi
+fi
+
+#Adds a dot before each label
+if [ -n "$LL_LABEL" ]; then LL_LABEL=".${LL_LABEL}" ; fi
+if [ -n "$ULA_LABEL" ]; then ULA_LABEL=".${ULA_LABEL}" ; fi
+if [ -n "$GUA_LABEL" ]; then GUA_LABEL=".${GUA_LABEL}" ; fi
+if [ -n "$EUI64_LABEL" ]; then EUI64_LABEL=".${EUI64_LABEL}" ; fi
+if [ -n "$TMP_LABEL" ]; then TMP_LABEL=".${TMP_LABEL}" ; fi
+
 #Process /etc/config/dhcp an look for hosts with 'slaac' options set
+
 echo "#Predefined SLAAC addresses" > /tmp/hosts/ip6neigh
 config_load dhcp
 config_foreach config_host host
@@ -209,8 +300,11 @@ echo -e "\n#Detected IPv6 neighbors" >> /tmp/hosts/ip6neigh
 #Send signal to dnsmasq to reload hosts files.
 killall -1 dnsmasq
 
+#Flushes the neighbors cache to speedup detection.
+ip -6 neigh flush dev "$LAN_DEV"
+
 #Infinite loop. Keeps monitoring changes in IPv6 neighbor's reachability status and call process() routine.
-ip -6 monitor neigh dev $LAN_DEV |
+ip -6 monitor neigh dev "$LAN_DEV" |
 	while IFS= read -r line
 	do
 		process $line
