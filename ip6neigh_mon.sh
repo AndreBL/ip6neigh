@@ -1,8 +1,27 @@
 #!/bin/sh
+
+##################################################################################
+#
+#  Copyright (C) 2016 André Lange
+#
+#  See the file "LICENSE" for information on usage and redistribution
+#  of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#  Distributed under GPLv2 License
+#
+##################################################################################
+
+
+#	Script to automatically generate and update a hosts file giving local DNS
+#	names to IPv6 addresses that IPv6 enabled devices took via SLAAC mechanism.
+#
+#	by André Lange		Dec 2016
+
 . /lib/functions.sh
 
 #LAN interface name
 readonly LAN_DEV="br-lan"
+
+#PRIMARY LABELS
 
 #Label for link-local addresses
 readonly LL_LABEL=".LL"
@@ -13,11 +32,14 @@ readonly ULA_LABEL=""
 #Label for globally unique addresses
 readonly GUA_LABEL=".PUB"
 
+#SECONDARY LABELS
+
 #Label for addresses with EUI-64 interface identifier when the same name already exists in another hosts file
 readonly EUI64_LABEL=".SLAAC"
 
 #Label for temporary addresses and other addresses not known to have a predictable interface identifier
 readonly TMP_LABEL=".TMP"
+
 
 #DNS suffix to append
 readonly DOMAIN=$(uci get dhcp.@dnsmasq[0].domain)
@@ -86,7 +108,7 @@ process() {
 
 			#If couldn't find a match in DHCPv6 leases then look into the DHCPv4 leases file.
 			if [ -z "$name" ]; then
-				name=$(grep -m 1 " $mac " /tmp/dhcp.leases | cut -d ' ' -f4)
+				name=$(grep -m 1 " $mac [^ ]{7,15} ([^*])" /tmp/dhcp.leases | cut -d ' ' -f4)
 			fi
 
 			#If it can't get a name for the address, do nothing.
