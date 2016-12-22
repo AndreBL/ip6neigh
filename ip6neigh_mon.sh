@@ -27,7 +27,7 @@ config_get LAN_IFACE config interface lan
 config_get LL_LABEL config ll_label LL
 config_get ULA_label config ula_label
 config_get gua_label config gua_label
-config_get EUI64_LABEL config eui64_label SLAAC
+config_get STATIC_LABEL config static_label SLAAC
 config_get TMP_LABEL config tmp_label TMP
 config_get PROBE_EUI64 config probe_eui64 1
 config_get_bool PROBE_IID config probe_iid 1
@@ -78,9 +78,33 @@ name_exists() {
 	return "$?"
 }
 
-#Returns 0 if the supplied IPv6 address has an EUI-64 interface identifier
+#Returns 0 if the supplied IPv6 address has an EUI-64 interface identifier.
 is_eui64() {
 	echo "$1" | grep -q -E ':[^:]{0,2}ff:fe[^:]{2}:[^:]{1,4}$'
+	return "$?"	
+}
+
+#Returns 0 if the supplied non-LL IPv6 address has the same IID as the LL address for that same host.
+is_other_static() {
+	local addr="$1"
+	local name="$2"
+	
+	#Gets the interface identifier from the address
+	iid=$(echo "$addr" | grep -o -m 1 -E "[^:]{1,4}:[^:]{1,4}:[^:]{1,4}:[^:]{1,4}$")
+	
+	#Aborts with false if could not get IID
+	[ -n "$iid" ] || return 1
+	
+	#Builds match string
+	local match
+	if [ -n "$LL_LABEL" ]; then
+		match="^fe80::${iid} ${name}${LL_LABEL}.${DOMAIN}$"
+	else
+		match="^fe80::${iid} ${name}$"
+	fi
+
+	#Looks for match and returns true if it finds one.
+	grep -q "$match" /tmp/hosts/ip6neigh
 	return "$?"	
 }
 
@@ -99,9 +123,10 @@ gen_eui64() {
 
 #Probe addresses related to the supplied base address and MAC.
 probe_addresses() {
-	local baseaddr="$1"
-	local mac="$2"
-	local scope="$3"
+	local name="$1"
+	local baseaddr="$2"
+	local mac="$3"
+	local scope="$4"
 
 	#Select addresses for probing
 	local list=""
@@ -142,7 +167,7 @@ probe_addresses() {
 	#Exit if there is nothing to probe.
 	[ -n "$list" ] || return 0
 	
-	[ "$LOG" -gt 0 ] && logger -t ip6neigh "Probing addresses: ${list}"
+	[ "$LOG" -gt 0 ] && logger -t ip6neigh "Probing other possible addresses for ${name}: ${list}"
 	
 	#Ping each address once
 	local addr
@@ -200,55 +225,66 @@ process() {
 
 			#Check address type and assign proper labels.
 			local suffix=""
+			local scope
 			if [ "${addr:0:4}" = "fe80" ]; then
 				#Is link-local. Append corresponding label.
 				suffix="${LL_LABEL}"
 				
-				#Probe addresses related to this one.
-				probe_addresses "$addr" "$mac" 0
+				#Sets scope ID to LL
+				scope=0
 			elif [ "${addr:0:2}" = "fd" ]; then
 				#Is ULA. Append corresponding label.
 				suffix="${ULA_LABEL}"
 				
-				#Check if interface identifier is EUI-64.
-				if is_eui64 "$addr" ; then
-					#If it is and the same name already exists in another hosts file, append EUI-64 label.
+				#Check if interface identifier is static
+				if is_eui64 "$addr" || is_other_static "$addr" "$name"; then
+					#If it is and the same name already exists in another hosts file, append label for resolving conflicts.
 					if name_exists "$name" "$suffix" ; then
-						suffix="${EUI64_LABEL}${suffix}"
-						[ "$LOG" -gt 0 ] && logger -t ip6neigh "Name $name already exists in another hosts file with IPv6 address. Appending label: ${EUI64_LABEL}"
+						suffix="${STATIC_LABEL}${suffix}"
+						[ "$LOG" -gt 0 ] && logger -t ip6neigh "Name $name already exists in another hosts file with IPv6 address. Appending label: ${STATIC_LABEL}"
 					fi
 				else
-					#Interface identifier is not EUI-64. #Adds temporary address label.
+					#Interface identifier does not appear to be static. Adds temporary address label.
 					suffix="${TMP_LABEL}${suffix}"
 				fi
 
-				#Probe addresses related to this one.
-				probe_addresses "$addr" "$mac" 1
+				#Sets scope ID to ULA
+				scope=1
 			else
 				#The address is globally unique. Append corresponding label.
 				suffix="${GUA_LABEL}"
 
-				#Check if interface identifier is EUI-64.
-				if is_eui64 "$addr" ; then
-					#If it is and the same name already exists in another hosts file, append EUI-64 label.
+				#Check if interface identifier is static
+				if is_eui64 "$addr" || is_other_static "$addr" "$name"; then
+					#If it is and the same name already exists in another hosts file, append label for resolving conflicts.
 					if name_exists "$name" "$suffix" ; then
-						suffix="${EUI64_LABEL}${suffix}"
-						[ "$LOG" -gt 0 ] && logger -t ip6neigh "Name $name already exists in another hosts file with IPv6 address. Appending label: ${EUI64_LABEL}"
+						suffix="${STATIC_LABEL}${suffix}"
+						[ "$LOG" -gt 0 ] && logger -t ip6neigh "Name $name already exists in another hosts file with IPv6 address. Appending label: ${STATIC_LABEL}"
 					fi
 				else
-					#Interface identifier is not EUI-64. #Adds temporary address label.
+					#Interface identifier does not appear to be static. Adds temporary address label.
 					suffix="${TMP_LABEL}${suffix}"					
 				fi 
 
-				#Probe addresses related to this one.
-				probe_addresses "$addr" "$mac" 2
+				#Sets scope ID to GUA
+				scope=2
 			fi
 
-			#Cat strings to get FQDN
-			local fqdn="${name}${suffix}.${DOMAIN}"
-
+			#Cat strings to generate output name
+			local hostsname
+			if [ -n "$suffix" ]; then
+				#Names with labels get FQDN
+				hostsname="${name}${suffix}.${DOMAIN}"
+			else
+				#Names without labels 
+				hostsname="${name}"
+			fi
+			
 			#Adds entry to hosts file
-			add "$fqdn" "$addr"
+			add "$hostsname" "$addr"
+			
+			#Probe other addresses related to this one
+			probe_addresses "$name" "$addr" "$mac" "$scope"
 		;;
 	esac
 	return 0
@@ -294,14 +330,23 @@ config_host() {
 	[ "$LOG" -gt 0 ] && logger -t ip6neigh "Generating predefined SLAAC addresses for $name"
 
 	#Creates hosts file entries with link-local, ULA and GUA prefixes with corresponding IIDs.
+	local suffix
+	suffix=""
 	if [ "$ll_iid" != "0" ]; then
-		echo "fe80::${ll_iid} ${name}${LL_LABEL}.${DOMAIN}" >> /tmp/hosts/ip6neigh
+		if [ -n "${LL_LABEL}" ]; then suffix="${LL_LABEL}.${DOMAIN}"; fi
+		echo "fe80::${ll_iid} ${name}${suffix}" >> /tmp/hosts/ip6neigh
 	fi
+	
+	suffix=""
 	if [ -n "$ula_prefix" ] && [ "$ula_iid" != "0" ]; then
-		echo "${ula_prefix}:${ula_iid} ${name}${ULA_LABEL}.${DOMAIN}" >> /tmp/hosts/ip6neigh
+		if [ -n "${ULA_LABEL}" ]; then suffix="${ULA_LABEL}.${DOMAIN}"; fi
+		echo "${ula_prefix}:${ula_iid} ${name}${suffix}" >> /tmp/hosts/ip6neigh
 	fi
+	
+	suffix=""
 	if [ -n "$gua_prefix" ] && [ "$gua_iid" != "0" ]; then
-		echo "${gua_prefix}:${gua_iid} ${name}${GUA_LABEL}.${DOMAIN}" >> /tmp/hosts/ip6neigh
+		if [ -n "${GUA_LABEL}" ]; then suffix="${GUA_LABEL}.${DOMAIN}"; fi
+		echo "${gua_prefix}:${gua_iid} ${name}${suffix}" >> /tmp/hosts/ip6neigh
 	fi
 }
 
@@ -335,7 +380,7 @@ fi
 if [ -n "$LL_LABEL" ]; then LL_LABEL=".${LL_LABEL}" ; fi
 if [ -n "$ULA_LABEL" ]; then ULA_LABEL=".${ULA_LABEL}" ; fi
 if [ -n "$GUA_LABEL" ]; then GUA_LABEL=".${GUA_LABEL}" ; fi
-if [ -n "$EUI64_LABEL" ]; then EUI64_LABEL=".${EUI64_LABEL}" ; fi
+if [ -n "$STATIC_LABEL" ]; then STATIC_LABEL=".${STATIC_LABEL}" ; fi
 if [ -n "$TMP_LABEL" ]; then TMP_LABEL=".${TMP_LABEL}" ; fi
 
 #Clears the output file

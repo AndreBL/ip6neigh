@@ -5,12 +5,12 @@ config ip6neigh 'config'
 	# Logical interface name. Default: 'lan'
 	# option interface	'lan'
 
-	# When a new neighbor is detected, auto probe for other addresses based
+	# When a new neighbor is discovered, auto probe for other addresses based
 	# on MAC.
 	# 0=disabled, 1=all scopes, 2=same scope. Default: '1'
 	#option probe_eui64	'1'
 
-	# When a new neighbor is detected, auto probe for other addresses with
+	# When a new neighbor is discovered, auto probe for other addresses with
 	# the same interface identifier. 
 	# 0=disabled, 1=enabled. Default: '1'
 	#option probe_iid	'1'
@@ -26,12 +26,12 @@ config ip6neigh 'config'
 	# network does not have ULA prefix.
 	#option gua_label	'PUB'
 
-	# Secondary label for MAC-based addreses. Will only appear if needed
+	# Secondary label for static addreses. Will only appear if needed
 	# to resolve conflict with another hosts file that has the same name
 	# for a different IPv6 address. It will happen if the DHCPv6 server
 	# has already assigned an IPv6 address to that same name.
 	# Default: 'SLAAC'
-	#option eui64_label	'SLAAC'
+	#option static_label	'SLAAC'
 
 	# Secondary label for temporary (RFC 4941) address. Will also be applied
 	# to addresses with Semantically Opaque Interface Identifiers (RFC 7217).
