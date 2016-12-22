@@ -115,8 +115,8 @@ probe_addresses() {
 		if [ -n "$base_iid" ]; then
 			#Probe same IID for different scopes than this one.
 			if [ "$scope" != 0 ]; then list="${list}fe80::${base_iid} "; fi
-			if [ "$scope" != 1 ]; then list="${list}${ula_prefix}:${base_iid} "; fi
-			if [ "$scope" != 2 ]; then list="${list}${gua_prefix}:${base_iid} "; fi
+			if [ "$scope" != 1 ] && [ -n "$ula_prefix" ]; then list="${list}${ula_prefix}:${base_iid} "; fi
+			if [ "$scope" != 2 ] && [ -n "$gua_prefix" ]; then list="${list}${gua_prefix}:${base_iid} "; fi
 		fi
 	fi
 
@@ -129,8 +129,12 @@ probe_addresses() {
 		#Only add to list if EUI-64 IID is different from the one that has been just added.
 		if [ "$eui64_iid" != "$base_iid" ]; then
 			if [ "$PROBE_EUI64" = "1" ] && [ "$scope" != 0 ]; then list="${list}fe80::${eui64_iid} "; fi
-			if [ "$PROBE_EUI64" = "1" ] || [ "$scope" = 1 ]; then list="${list}${ula_prefix}:${eui64_iid} "; fi
-			if [ "$PROBE_EUI64" = "1" ] || [ "$scope" = 2 ]; then list="${list}${gua_prefix}:${eui64_iid}"; fi
+			if [ "$PROBE_EUI64" = "1" ] || [ "$scope" = 1 ]; then
+				if [ -n "$ula_prefix" ]; then list="${list}${ula_prefix}:${eui64_iid} "; fi
+			fi
+			if [ "$PROBE_EUI64" = "1" ] || [ "$scope" = 2 ]; then
+				if [ -n "$gua_prefix" ]; then list="${list}${gua_prefix}:${eui64_iid}"; fi
+			fi
 		fi
 	fi
 	
