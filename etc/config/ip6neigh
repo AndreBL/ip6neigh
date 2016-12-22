@@ -1,40 +1,48 @@
+#UCI example configuration file for ip6neigh script
+
 config ip6neigh 'config'
 
-	#Logical interface name. Default: 'lan'
-	#option interface	'lan'
+	# Logical interface name. Default: 'lan'
+	# option interface	'lan'
 
-	#Auto probe other addresses based on MAC from the detected neighbor.
-	#0=no, 1=all scopes, 2=same scope. Default: '1'
+	# When a new neighbor is detected, auto probe for other addresses based
+	# on MAC.
+	# 0=disabled, 1=all scopes, 2=same scope. Default: '1'
 	#option probe_eui64	'1'
 
-	#Label for link-local addresses. Default: 'LL'
+	# When a new neighbor is detected, auto probe for other addresses with
+	# the same interface identifier. 
+	# 0=disabled, 1=enabled. Default: '1'
+	#option probe_iid	'1'
+
+	# Label for link-local addresses. Default: 'LL'
 	#option ll_label	'LL'
 
-	#Label for unique local addresses (ULA). Default is no label for ULAs.
+	# Label for unique local addresses (ULA). Default is no label for ULAs.
 	#option ula_label	'ULA'
 
-	#Label for globally unique addresses (GUA).
-	#Defaults to 'PUB' if network has ULA prefix and no label if network
-	#network does not have ULA prefix.
+	# Label for globally unique addresses (GUA).
+	# Defaults to 'PUB' if network has ULA prefix and no label if network
+	# network does not have ULA prefix.
 	#option gua_label	'PUB'
 
-	#Secondary label for MAC-based addreses. Will only appear if needed
-	#to resolve conflict with another hosts file that has the same name
-	#for a different IPv6 address. It will happen if the DHCPv6 server
-	#has already assigned an IPv6 address to that same name.
-	#Default: 'SLAAC'
+	# Secondary label for MAC-based addreses. Will only appear if needed
+	# to resolve conflict with another hosts file that has the same name
+	# for a different IPv6 address. It will happen if the DHCPv6 server
+	# has already assigned an IPv6 address to that same name.
+	# Default: 'SLAAC'
 	#option eui64_label	'SLAAC'
 
-	#Secondary label for temporary (RFC 4941) address. Will also be applied
-	#to addresses with Semantically Opaque Interface Identifiers (RFC 7217).
-	#Default: 'TMP'
+	# Secondary label for temporary (RFC 4941) address. Will also be applied
+	# to addresses with Semantically Opaque Interface Identifiers (RFC 7217).
+	# Default: 'TMP'
 	#option tmp_label	'TMP'
 
-	#Name to be used for hosts that do not supply their name to DHCPv6 or
-	#DHCPv4 servers. A six digit (hex) NIC identifier will be appended after
-	#it. Default: 'Unknown-'
+	# Name to be used for hosts that do not supply their name to DHCPv6 or
+	# DHCPv4 servers. A six digit (hex) NIC identifier will be appended after
+	# it. Default: 'Unknown-'
 	#option	unknown		'Unknown-'
 
-	#Enable syslog log messages.
-	#0=no, 1=yes. Default: 0
+	# Enable syslog log messages.
+	# 0=disabled, 1=enabled. Default: '0'
 	option log		'1'
