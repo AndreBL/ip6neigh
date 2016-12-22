@@ -32,6 +32,7 @@ config_get TMP_LABEL config tmp_label TMP
 config_get PROBE_EUI64 config probe_eui64 1
 config_get_bool PROBE_IID config probe_iid 1
 config_get UNKNOWN config unknown "Unknown-"
+config_get_bool LOAD_STATIC config load_static 1
 config_get_bool LOG config log 0
 
 #Gets the physical device
@@ -150,7 +151,7 @@ probe_addresses() {
 		if [ -n "$addr" ]; then
 			#Skip addresses that already exist in some hosts file.
 			if ! grep -q "^$addr " /tmp/hosts/* ; then
-		 		ping6 -q -W 1 -c 1 -s 1 -I "$LAN_DEV" "$addr" >/dev/null 2>/dev/null
+		 		ping6 -q -W 1 -c 1 -s 0 -I "$LAN_DEV" "$addr" >/dev/null 2>/dev/null
 			fi
 		fi
 	done
@@ -304,11 +305,13 @@ config_host() {
 	fi
 }
 
-#Finds ULA and global prefixes on LAN interface.
+#Finds ULA and global addresses on LAN interface.
 ula_cidr=$(ip -6 addr show "$LAN_DEV" scope global 2>/dev/null | grep "inet6 fd" | grep -m 1 -v "dynamic" | awk '{print $2}')
-pub_cidr=$(ip -6 addr show "$LAN_DEV" scope global dynamic 2>/dev/null | grep -m 1 -E "inet6 ([^fd])" | awk '{print $2}')
-ula_prefix=$(echo "$ula_cidr" | cut -d ":" -f1-4)
-gua_prefix=$(echo "$pub_cidr" | cut -d ":" -f1-4)
+gua_cidr=$(ip -6 addr show "$LAN_DEV" scope global dynamic 2>/dev/null | grep -m 1 -E "inet6 ([^fd])" | awk '{print $2}')
+ula_address=$(echo "$ula_cidr" | cut -d "/" -f1)
+gua_address=$(echo "$gua_cidr" | cut -d "/" -f1)
+ula_prefix=$(echo "$ula_address" | cut -d ":" -f1-4)
+gua_prefix=$(echo "$gua_address" | cut -d ":" -f1-4)
 
 #Decides if the GUAs should get a label based in config file and the presence of ULAs
 if [ -n "$gua_label" ]; then
@@ -335,19 +338,28 @@ if [ -n "$GUA_LABEL" ]; then GUA_LABEL=".${GUA_LABEL}" ; fi
 if [ -n "$EUI64_LABEL" ]; then EUI64_LABEL=".${EUI64_LABEL}" ; fi
 if [ -n "$TMP_LABEL" ]; then TMP_LABEL=".${TMP_LABEL}" ; fi
 
-#Process /etc/config/dhcp an look for hosts with 'slaac' options set
+#Clears the output file
+> /tmp/hosts/ip6neigh
 
-echo "#Predefined SLAAC addresses" > /tmp/hosts/ip6neigh
-config_load dhcp
-config_foreach config_host host
-echo -e "\n#Detected IPv6 neighbors" >> /tmp/hosts/ip6neigh
+#Process /etc/config/dhcp an look for hosts with 'slaac' options set
+if [ "$LOAD_STATIC" -gt 0 ]; then
+	echo "#Predefined SLAAC addresses" >> /tmp/hosts/ip6neigh
+	config_load dhcp
+	config_foreach config_host host
+	echo -e >> /tmp/hosts/ip6neigh
+fi
+	
+echo "#Discovered IPv6 neighbors" >> /tmp/hosts/ip6neigh
 
 #Send signal to dnsmasq to reload hosts files.
 killall -1 dnsmasq
 
-#Flushes the neighbors cache and pings "all nodes" multicast address to speedup detection.
+#Flushes the neighbors cache and pings "all nodes" multicast address with various source addresses to speedup discovery.
 ip -6 neigh flush dev "$LAN_DEV"
-ping6 -q -W 1 -c 3 -s 1 -I "$LAN_DEV" ff02::1 >/dev/null 2>/dev/null
+
+ping6 -q -W 1 -c 3 -s 0 -I "$LAN_DEV" ff02::1 >/dev/null 2>/dev/null
+[ -n "$ula_address" ] && ping6 -q -W 1 -c 3 -s 0 -I "$ula_address" ff02::1 >/dev/null 2>/dev/null
+[ -n "$gua_address" ] && ping6 -q -W 1 -c 3 -s 0 -I "$gua_address" ff02::1 >/dev/null 2>/dev/null
 
 #Infinite loop. Keeps monitoring changes in IPv6 neighbor's reachability status and call process() routine.
 ip -6 monitor neigh dev "$LAN_DEV" |

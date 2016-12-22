@@ -43,6 +43,10 @@ config ip6neigh 'config'
 	# it. Default: 'Unknown-'
 	#option	unknown		'Unknown-'
 
+	# Enable loading of predefined static or MAC-based IIDs from /etc/config/dhcp.
+	# 0=disabled, 1=enabled. Default: '1'
+	#option load_static	'1'
+
 	# Enable syslog log messages.
 	# 0=disabled, 1=enabled. Default: '0'
 	option log		'1'
