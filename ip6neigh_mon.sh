@@ -110,11 +110,14 @@ probe_addresses() {
 	if [ "$PROBE_IID" -gt 0 ]; then
 		#Gets the interface identifier from the base address
 		base_iid=$(echo "$baseaddr" | grep -o -m 1 -E "[^:]{1,4}:[^:]{1,4}:[^:]{1,4}:[^:]{1,4}$")
-
-		#Probe same IID for different scopes.
-		if [ "$scope" != 0 ]; then list="${list}fe80::${base_iid} "; fi
-		if [ "$scope" != 1 ]; then list="${list}${ula_prefix}:${base_iid} "; fi
-		if [ "$scope" != 2 ]; then list="${list}${gua_prefix}:${base_iid} "; fi
+		
+		#Proceed if successful in getting the IID from the address
+		if [ -n "$base_iid" ]; then
+			#Probe same IID for different scopes than this one.
+			if [ "$scope" != 0 ]; then list="${list}fe80::${base_iid} "; fi
+			if [ "$scope" != 1 ]; then list="${list}${ula_prefix}:${base_iid} "; fi
+			if [ "$scope" != 2 ]; then list="${list}${gua_prefix}:${base_iid} "; fi
+		fi
 	fi
 
 	#Check if is configured for probing MAC-based addresses
