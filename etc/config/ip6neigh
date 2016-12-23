@@ -33,13 +33,14 @@ config ip6neigh 'config'
 
 	# Name to be used for hosts that do not supply their name to DHCPv6 or
 	# DHCPv4 servers. A six digit (hex) NIC identifier will be appended after
-	# it. Default: 'Unknown-'
+	# it. Use '0' if you want to disable this feature. Default: 'Unknown-'
 	#option	unknown		'Unknown-'
 
 	# Enable loading of predefined static or MAC-based IIDs from /etc/config/dhcp.
 	# 0=disabled, 1=enabled. Default: '1'
 	#option load_static	'1'
 
-	# Enable syslog log messages.
-	# 0=disabled, 1=enabled. Default: '0'
-	option log		'1'
+	# Enable logging of debug messages. Options are '0' for disabled,
+	# '1' to use syslog or the file name if you want to log to a file instead.
+	# Default: '0'
+	option log		'/tmp/log/ip6neigh.log'

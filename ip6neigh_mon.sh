@@ -32,7 +32,7 @@ config_get PROBE_EUI64 config probe_eui64 1
 config_get_bool PROBE_IID config probe_iid 1
 config_get UNKNOWN config unknown "Unknown-"
 config_get_bool LOAD_STATIC config load_static 1
-config_get_bool LOG config log 0
+config_get LOG config log 0
 
 #Gets the physical device
 network_get_physdev LAN_DEV "$LAN_IFACE"
@@ -41,8 +41,6 @@ network_get_physdev LAN_DEV "$LAN_IFACE"
 DOMAIN=$(uci get dhcp.@dnsmasq[0].domain)
 if [ -z "$DOMAIN" ]; then DOMAIN="lan"; fi
 
-[ "$LOG" -gt 0 ] && logger -t ip6neigh "Starting ip6neigh script for physdev $LAN_DEV with domain $DOMAIN"
-
 #Adds entry to hosts file
 add() {
 	local name="$1"
@@ -50,7 +48,7 @@ add() {
 	echo "$addr $name" >> /tmp/hosts/ip6neigh
 	killall -1 dnsmasq
 
-	[ "$LOG" -gt 0 ] && logger -t ip6neigh "Added: $name $addr"
+	logmsg "Added: $name $addr"
 	
 	return 0
 }
@@ -63,11 +61,12 @@ remove() {
 	grep -v "^$addr " /tmp/hosts/ip6neigh > /tmp/ip6neigh
 	mv /tmp/ip6neigh /tmp/hosts/ip6neigh
 
-	[ "$LOG" -gt 0 ] && logger -t ip6neigh "Removed: $addr"
+	logmsg "Removed: $addr"
 	return 0
 }
 
-replace_names() {
+#Renames a previously added entry
+rename() {
 	local oldname="$1"
 	local newname="$2"
 
@@ -75,7 +74,22 @@ replace_names() {
 	sed "s/ ${oldname}/ ${newname}/g" /tmp/hosts/ip6neigh > /tmp/ip6neigh
 	mv /tmp/ip6neigh /tmp/hosts/ip6neigh
 
-	[ "$LOG" -gt 0 ] && logger -t ip6neigh "Replaced names: $oldname to $newname"
+	logmsg "Replaced names: $oldname to $newname"
+	return 0
+}
+
+#Writes message to log
+logmsg() {
+	#Check if logging is disabled
+	[ "$LOG" = "0" ] && return 0
+	
+	if [ "$LOG" = "1" ]; then
+		#Log to syslog
+		logger -t ip6neigh "$1"
+	else
+		#Log to file
+		echo "$(date) $1" >> "$LOG"
+	fi
 	return 0
 }
 
@@ -167,7 +181,7 @@ probe_addresses() {
 	#Exit if there is nothing to probe.
 	[ -n "$list" ] || return 0
 	
-	[ "$LOG" -gt 0 ] && logger -t ip6neigh "Probing other possible addresses for ${name}: ${list}"
+	logmsg "Probing other possible addresses for ${name}: ${list}"
 	
 	#Ping each address once
 	local addr
@@ -294,7 +308,7 @@ process() {
 				1)
 					if is_other_static "$addr"; then
 						#Removes the temporary address entry to be re-added as non-temp.
-						[ "$LOG" -gt 0 ] && logger -t ip6neigh "Address $addr was believed to be temporary but a LL address with same IID is now found. Replacing entry."
+						logmsg "Address $addr was believed to be temporary but a LL address with same IID is now found. Replacing entry."
 						remove "$addr"
 						
 						#Create name for address, allowing to generate unknown.
@@ -313,8 +327,8 @@ process() {
 					#Create name for address, not allowing to generate unknown.
 					if create_name name "$mac" 0; then
 						#Success creating name. Replaces the unknown name.
-						[ "$LOG" -gt 0 ] && logger -t ip6neigh "Host $currname now has got a proper name. Replacing all entries."
-						replace_names "$currname" "$name"
+						logmsg "Host $currname now has got a proper name. Replacing all entries."
+						rename "$currname" "$name"
 					fi
 
 					return 0
@@ -422,7 +436,7 @@ config_host() {
 	config_get ula_iid "$1" ula_iid "$iid"
 	config_get gua_iid "$1" gua_iid "$iid"
 	
-	[ "$LOG" -gt 0 ] && logger -t ip6neigh "Generating predefined SLAAC addresses for $name"
+	logmsg "Generating predefined SLAAC addresses for $name"
 
 	#Creates hosts file entries with link-local, ULA and GUA prefixes with corresponding IIDs.
 	local suffix
@@ -445,6 +459,14 @@ config_host() {
 	fi
 }
 
+#Clears the log file if one is set
+if [ "$LOG" != "0" ] && [ "$LOG" != "1" ]; then
+	> "$LOG"
+fi
+
+#Startup message
+logmsg "Starting ip6neigh script for physdev $LAN_DEV with domain $DOMAIN"
+
 #Finds ULA and global addresses on LAN interface.
 ula_cidr=$(ip -6 addr show "$LAN_DEV" scope global 2>/dev/null | grep "inet6 fd" | grep -m 1 -v "dynamic" | awk '{print $2}')
 gua_cidr=$(ip -6 addr show "$LAN_DEV" scope global dynamic 2>/dev/null | grep -m 1 -E "inet6 ([^fd])" | awk '{print $2}')
@@ -457,17 +479,17 @@ gua_prefix=$(echo "$gua_address" | cut -d ":" -f1-4)
 if [ -n "$gua_label" ]; then
 	#Use label specified in config file.
 	GUA_LABEL="$gua_label"
-	[ "$LOG" -gt 0 ] && logger -t ip6neigh "Using custom label for GUAs: ${GUA_LABEL}"
+	logmsg "Using custom label for GUAs: ${GUA_LABEL}"
 else
 	#No label has been specified for GUAs. Check if the network setup has ULAs.
 	if [ -n "$ula_prefix" ]; then
 		#Yes. Use default label for GUAs.
 		GUA_LABEL="PUB"
-		[ "$LOG" -gt 0 ] && logger -t ip6neigh "Network has ULA prefix ${ula_prefix}::/64. Using default label for GUAs: ${GUA_LABEL}"
+		logmsg "Network has ULA prefix ${ula_prefix}::/64. Using default label for GUAs: ${GUA_LABEL}"
 	else
 		#No ULAs. So do not use label for GUAs.
 		GUA_LABEL=""
-		[ "$LOG" -gt 0 ] && logger -t ip6neigh "Network does not have ULA prefix. Clearing label for GUAs."
+		logmsg "Network does not have ULA prefix. Clearing label for GUAs."
 	fi
 fi
 
