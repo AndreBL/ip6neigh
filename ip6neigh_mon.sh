@@ -67,6 +67,18 @@ remove() {
 	return 0
 }
 
+replace_names() {
+	local oldname="$1"
+	local newname="$2"
+
+	#Must save changes to another temp file and then move it over the main file.
+	sed "s/ ${oldname}/ ${newname}/g" /tmp/hosts/ip6neigh > /tmp/ip6neigh
+	mv /tmp/ip6neigh /tmp/hosts/ip6neigh
+
+	[ "$LOG" -gt 0 ] && logger -t ip6neigh "Replaced names: $oldname to $newname"
+	return 0
+}
+
 #Returns 0 if the supplied IPv6 address has an EUI-64 interface identifier.
 is_eui64() {
 	echo "$1" | grep -q -E ':[^:]{0,2}ff:fe[^:]{2}:[^:]{1,4}$'
@@ -76,7 +88,6 @@ is_eui64() {
 #Returns 0 if the supplied non-LL IPv6 address has the same IID as the LL address for that same host.
 is_other_static() {
 	local addr="$1"
-	local name="$2"
 	
 	#Gets the interface identifier from the address
 	iid=$(echo "$addr" | grep -o -m 1 -E "[^:]{1,4}:[^:]{1,4}:[^:]{1,4}:[^:]{1,4}$")
@@ -87,9 +98,9 @@ is_other_static() {
 	#Builds match string
 	local match
 	if [ -n "$LL_LABEL" ]; then
-		match="^fe80::${iid} ${name}${LL_LABEL}.${DOMAIN}$"
+		match="^fe80::${iid} [^ ]*${LL_LABEL}.${DOMAIN}$"
 	else
-		match="^fe80::${iid} ${name}$"
+		match="^fe80::${iid} [^ ]*$"
 	fi
 
 	#Looks for match and returns true if it finds one.
@@ -173,6 +184,85 @@ probe_addresses() {
 	return 0
 }
 
+#Try to get a name from DHCPv6/v4 leases based on MAC.
+dhcp_name() {
+	local mac="$2"
+	local match
+	local dname
+
+	#Look for a DHCPv6 lease with DUID-LL or DUID-LLT matching the neighbor's MAC address.
+	match=$(echo "$mac" | tr -d ':')
+	dname=$(grep -m 1 -E "^# ${LAN_DEV} (00010001.{8}|00030001)${match} " /tmp/hosts/odhcpd | cut -d ' ' -f5)
+
+	#If couldn't find a match in DHCPv6 leases then look into the DHCPv4 leases file.
+	if [ -z "$dname" ]; then
+		dname=$(grep -m 1 -E " $mac [^ ]{7,15} ([^*])" /tmp/dhcp.leases | cut -d ' ' -f4)
+	fi
+	
+	#If succeded, returns the name and success.
+	if [ -n "$dname" ]; then
+		eval "$1='$dname'"
+		return 0
+	fi
+	
+	#Failed. Return error.
+	return 1
+}
+
+#Creates a name for the host.
+create_name() {
+	local mac="$2"
+	local generate="$3"
+	local cname
+	
+	#Try to get a name from DHCPv6/v4 leases. If it fails, decide what to do based on type.
+	if ! dhcp_name cname "$mac"; then
+		#Create a name based on MAC address if allowed to do so.
+		if [ "$generate" -gt 0 ] && [ "${UNKNOWN}" != 0 ]; then
+			local nic
+			nic=$(echo "$mac" | tr -d ':' | tail -c 7)
+			cname="${UNKNOWN}${nic}"
+		else
+			#No source for name. Returns error.
+			return 1
+		fi
+	fi
+	
+	#Success
+	eval "$1='$cname'"
+	return 0
+}
+
+#Gets the current name for an IPv6 address from the hosts file
+get_name() {
+	local addr="$2"
+	local matched
+	
+	#Check if the address already exists
+	matched=$(grep "^$addr " /tmp/hosts/*)
+	
+	#Address is new? (not found)
+	[ "$?" != 0 ] && return 3
+	
+	#Check what kind of name it has
+	local gname=$(echo "$matched" | cut -d ' ' -f2)
+	local fname=$(echo "$gname" | cut -d '.' -f1)
+	eval "$1='$fname'"
+	
+	#Unknown name?
+	if [ "$UNKNOWN" != "0" ]; then
+		echo "$gname" | grep -q -E "^${UNKNOWN}[0-9,a-f]{6}(\.|$)"
+		[ "$?" = 0 ] && return 2
+	fi
+	
+	#Temporary name?
+	echo "$gname" | grep -q "^[^\.]*${TMP_LABEL}\."
+	[ "$?" = 0 ] && return 1
+	
+	#Existent non-temporary name
+	return 0
+}
+
 #Main routine: Process the changes in reachability status.
 process() {
 	local addr="$1"
@@ -185,34 +275,62 @@ process() {
 
 	case "$status" in
 		#Neighbor is unreachable. Remove it from hosts file.
-		"FAILED") remove "$addr" ;;
+		"FAILED") remove "$addr";;
 
-		#Neighbor is reachable. Must be added to hosts file if it is not there yet.
+		#Neighbor is reachable. Must be processed.
 		"REACHABLE")
-			#Ignore if this IPv6 address already exists in any hosts file.
-			grep -q "^$addr " /tmp/hosts/* && return 0
-
-			#Look for a DHCPv6 lease with DUID-LL or DUID-LLT matching the neighbor's MAC address.
-			local match
+			#Check current name and decide what to do based on its type.
 			local name
-			match=$(echo "$mac" | tr -d ':')
-			name=$(grep -m 1 -E "^# ${LAN_DEV} (00010001.{8}|00030001)${match} " /tmp/hosts/odhcpd | cut -d ' ' -f5)
+			local currname
+			local type
+			get_name currname "$addr"
+			type="$?"
+			
+			case "$type" in
+				#Address already has a stable name. Nothing to be done.
+				0) return 0;;
+				
+				#Address named as temporary. Check if it is possible to classify it as non-temporary now.
+				1)
+					if is_other_static "$addr"; then
+						#Removes the temporary address entry to be re-added as non-temp.
+						[ "$LOG" -gt 0 ] && logger -t ip6neigh "Address $addr was believed to be temporary but a LL address with same IID is now found. Replacing entry."
+						remove "$addr"
+						
+						#Create name for address, allowing to generate unknown.
+						if ! create_name name "$mac" 1; then
+							#Nothing to be done if could not get a name.
+							return 0
+						fi
+					else
+						#Still temporary. Nothing to be done.
+						return 0
+					fi
+				;;
+				
+				#Address was already named as unknown.
+				2)
+					#Create name for address, not allowing to generate unknown.
+					if create_name name "$mac" 0; then
+						#Success creating name. Replaces the unknown name.
+						[ "$LOG" -gt 0 ] && logger -t ip6neigh "Host $currname now has got a proper name. Replacing all entries."
+						replace_names "$currname" "$name"
+					fi
 
-			#If couldn't find a match in DHCPv6 leases then look into the DHCPv4 leases file.
-			if [ -z "$name" ]; then
-				name=$(grep -m 1 -E " $mac [^ ]{7,15} ([^*])" /tmp/dhcp.leases | cut -d ' ' -f4)
+					return 0
+				;;
+				
+				#Address is new.
+				3)
+					#Create name for address, allowing to generate unknown.
+					if ! create_name name "$mac" 1; then
+						#Nothing to be done if could not get a name.
+						return 0
+					fi
+				;;
+			esac
 
-			fi
-
-			#If it can't get a name for the address, create one based on MAC address.
-			if [ -z "$name" ]; then
-				[ "${UNKNOWN}" != 0 ] || return 0;
-				local nic
-				nic=$(echo "$match" | tail -c 7)
-				name="${UNKNOWN}${nic}"
-			fi
-
-			#Check address type and assign proper labels.
+			#Check address scope and assign proper labels.
 			local suffix=""
 			local scope
 			if [ "${addr:0:4}" = "fe80" ]; then
@@ -226,7 +344,7 @@ process() {
 				suffix="${ULA_LABEL}"
 				
 				#Check if interface identifier is static
-				if ! is_eui64 "$addr" && ! is_other_static "$addr" "$name"; then
+				if ! is_eui64 "$addr" && ! is_other_static "$addr"; then
 					#Interface identifier does not appear to be static. Adds temporary address label.
 					suffix="${TMP_LABEL}${suffix}"
 				fi
@@ -238,7 +356,7 @@ process() {
 				suffix="${GUA_LABEL}"
 
 				#Check if interface identifier is static
-				if ! is_eui64 "$addr" && ! is_other_static "$addr" "$name"; then
+				if ! is_eui64 "$addr" && ! is_other_static "$addr"; then
 					#Interface identifier does not appear to be static. Adds temporary address label.
 					suffix="${TMP_LABEL}${suffix}"					
 				fi 
@@ -388,3 +506,4 @@ ip -6 monitor neigh dev "$LAN_DEV" |
 	do
 		process $line
 	done
+
