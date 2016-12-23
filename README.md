@@ -37,8 +37,12 @@ IPv6 addresses are difficult to remember. DNS provides an abstraction layer, so 
 3. Create hotplug script `/etc/hotplug.d/iface/30-ip6neigh`
 
     Script code is at: [30-ip6neigh](https://github.com/AndreBL/ip6neigh/blob/master/etc/hotplug.d/iface/30-ip6neigh)
+	
+4. Create UCI config file `/etc/config/ip6neigh`
 
-4. Start it...
+   Example config is at: [ip6neigh](https://github.com/AndreBL/ip6neigh/blob/master/etc/config/ip6neigh)
+
+5. Start it...
 manually with
 
     ```
@@ -52,6 +56,12 @@ manually with
 	sync
 	reboot
 	```
+	
+6. Check if your hosts file is being populated:
+
+   ```
+   cat /tmp/hosts/ip6neigh
+   ```
 
 ## Contributors
 
