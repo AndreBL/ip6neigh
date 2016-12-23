@@ -27,7 +27,6 @@ config_get LAN_IFACE config interface lan
 config_get LL_LABEL config ll_label LL
 config_get ULA_label config ula_label
 config_get gua_label config gua_label
-config_get STATIC_LABEL config static_label SLAAC
 config_get TMP_LABEL config tmp_label TMP
 config_get PROBE_EUI64 config probe_eui64 1
 config_get_bool PROBE_IID config probe_iid 1
@@ -39,8 +38,8 @@ config_get_bool LOG config log 0
 network_get_physdev LAN_DEV "$LAN_IFACE"
 
 #DNS suffix to append
-config_load dhcp
-config_get DOMAIN dhcp domain lan
+DOMAIN=$(uci get dhcp.@dnsmasq[0].domain)
+if [ -z "$DOMAIN" ]; then DOMAIN="lan"; fi
 
 [ "$LOG" -gt 0 ] && logger -t ip6neigh "Starting ip6neigh script for physdev $LAN_DEV with domain $DOMAIN"
 
@@ -66,16 +65,6 @@ remove() {
 
 	[ "$LOG" -gt 0 ] && logger -t ip6neigh "Removed: $addr"
 	return 0
-}
-
-#Returns 0 if the supplied name already exists in another hosts file
-name_exists() {
-	local match="$1"
-	if [ -n "$2" ]; then
-		match="${match}.$2.${DOMAIN}"
-	fi
-	grep ".*:.* ${match}$" /tmp/hosts/* | grep -q -v '^/tmp/hosts/ip6neigh:'
-	return "$?"
 }
 
 #Returns 0 if the supplied IPv6 address has an EUI-64 interface identifier.
@@ -237,13 +226,7 @@ process() {
 				suffix="${ULA_LABEL}"
 				
 				#Check if interface identifier is static
-				if is_eui64 "$addr" || is_other_static "$addr" "$name"; then
-					#If it is and the same name already exists in another hosts file, append label for resolving conflicts.
-					if name_exists "$name" "$suffix" ; then
-						suffix="${STATIC_LABEL}${suffix}"
-						[ "$LOG" -gt 0 ] && logger -t ip6neigh "Name $name already exists in another hosts file with IPv6 address. Appending label: ${STATIC_LABEL}"
-					fi
-				else
+				if ! is_eui64 "$addr" && ! is_other_static "$addr" "$name"; then
 					#Interface identifier does not appear to be static. Adds temporary address label.
 					suffix="${TMP_LABEL}${suffix}"
 				fi
@@ -255,13 +238,7 @@ process() {
 				suffix="${GUA_LABEL}"
 
 				#Check if interface identifier is static
-				if is_eui64 "$addr" || is_other_static "$addr" "$name"; then
-					#If it is and the same name already exists in another hosts file, append label for resolving conflicts.
-					if name_exists "$name" "$suffix" ; then
-						suffix="${STATIC_LABEL}${suffix}"
-						[ "$LOG" -gt 0 ] && logger -t ip6neigh "Name $name already exists in another hosts file with IPv6 address. Appending label: ${STATIC_LABEL}"
-					fi
-				else
+				if ! is_eui64 "$addr" && ! is_other_static "$addr" "$name"; then
 					#Interface identifier does not appear to be static. Adds temporary address label.
 					suffix="${TMP_LABEL}${suffix}"					
 				fi 
@@ -380,7 +357,6 @@ fi
 if [ -n "$LL_LABEL" ]; then LL_LABEL=".${LL_LABEL}" ; fi
 if [ -n "$ULA_LABEL" ]; then ULA_LABEL=".${ULA_LABEL}" ; fi
 if [ -n "$GUA_LABEL" ]; then GUA_LABEL=".${GUA_LABEL}" ; fi
-if [ -n "$STATIC_LABEL" ]; then STATIC_LABEL=".${STATIC_LABEL}" ; fi
 if [ -n "$TMP_LABEL" ]; then TMP_LABEL=".${TMP_LABEL}" ; fi
 
 #Clears the output file

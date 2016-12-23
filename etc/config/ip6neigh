@@ -26,13 +26,6 @@ config ip6neigh 'config'
 	# network does not have ULA prefix.
 	#option gua_label	'PUB'
 
-	# Secondary label for static addreses. Will only appear if needed
-	# to resolve conflict with another hosts file that has the same name
-	# for a different IPv6 address. It will happen if the DHCPv6 server
-	# has already assigned an IPv6 address to that same name.
-	# Default: 'SLAAC'
-	#option static_label	'SLAAC'
-
 	# Secondary label for temporary (RFC 4941) address. Will also be applied
 	# to addresses with Semantically Opaque Interface Identifiers (RFC 7217).
 	# Default: 'TMP'
