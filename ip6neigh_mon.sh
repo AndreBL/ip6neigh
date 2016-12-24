@@ -135,6 +135,19 @@ gen_eui64() {
 	return 0
 }
 
+#Adds an address to the probe list
+add_probe() {
+	local addr="$1"
+	
+	#Do not add if the address already exist in some hosts file.
+	grep -q "^$addr " /tmp/hosts/* && return 0
+	
+	#Adds to the list
+	probe_list="${probe_list}${addr} "
+	
+	return 0
+}
+
 #Probe addresses related to the supplied base address and MAC.
 probe_addresses() {
 	local name="$1"
@@ -142,8 +155,8 @@ probe_addresses() {
 	local mac="$3"
 	local scope="$4"
 
-	#Select addresses for probing
-	local list=""
+	#Initializes probe list
+	probe_list=""
 
 	#Check if is configured for probing addresses with the same IID
 	local base_iid=""
@@ -154,9 +167,9 @@ probe_addresses() {
 		#Proceed if successful in getting the IID from the address
 		if [ -n "$base_iid" ]; then
 			#Probe same IID for different scopes than this one.
-			if [ "$scope" != 0 ]; then list="${list}fe80::${base_iid} "; fi
-			if [ "$scope" != 1 ] && [ -n "$ula_prefix" ]; then list="${list}${ula_prefix}:${base_iid} "; fi
-			if [ "$scope" != 2 ] && [ -n "$gua_prefix" ]; then list="${list}${gua_prefix}:${base_iid} "; fi
+			if [ "$scope" != 0 ]; then add_probe "fe80::${base_iid}"; fi
+			if [ "$scope" != 1 ] && [ -n "$ula_prefix" ]; then add_probe "${ula_prefix}:${base_iid}"; fi
+			if [ "$scope" != 2 ] && [ -n "$gua_prefix" ]; then add_probe "${gua_prefix}:${base_iid}"; fi
 		fi
 	fi
 
@@ -168,32 +181,32 @@ probe_addresses() {
 
 		#Only add to list if EUI-64 IID is different from the one that has been just added.
 		if [ "$eui64_iid" != "$base_iid" ]; then
-			if [ "$PROBE_EUI64" = "1" ] && [ "$scope" != 0 ]; then list="${list}fe80::${eui64_iid} "; fi
+			if [ "$PROBE_EUI64" = "1" ] && [ "$scope" != 0 ]; then add_probe "fe80::${eui64_iid}"; fi
 			if [ "$PROBE_EUI64" = "1" ] || [ "$scope" = 1 ]; then
-				if [ -n "$ula_prefix" ]; then list="${list}${ula_prefix}:${eui64_iid} "; fi
+				if [ -n "$ula_prefix" ]; then add_probe "${ula_prefix}:${eui64_iid}"; fi
 			fi
 			if [ "$PROBE_EUI64" = "1" ] || [ "$scope" = 2 ]; then
-				if [ -n "$gua_prefix" ]; then list="${list}${gua_prefix}:${eui64_iid}"; fi
+				if [ -n "$gua_prefix" ]; then add_probe "${gua_prefix}:${eui64_iid}"; fi
 			fi
 		fi
 	fi
 	
 	#Exit if there is nothing to probe.
-	[ -n "$list" ] || return 0
+	[ -n "$probe_list" ] || return 0
 	
-	logmsg "Probing other possible addresses for ${name}: ${list}"
+	logmsg "Probing other possible addresses for ${name}: ${probe_list}"
 	
-	#Ping each address once
+	#Ping each address once.
 	local addr
 	IFS=' '
-	for addr in $list; do
+	for addr in $probe_list; do
 		if [ -n "$addr" ]; then
-			#Skip addresses that already exist in some hosts file.
-			if ! grep -q "^$addr " /tmp/hosts/* ; then
-		 		ping6 -q -W 1 -c 1 -s 0 -I "$LAN_DEV" "$addr" >/dev/null 2>/dev/null
-			fi
+		 	ping6 -q -W 1 -c 1 -s 0 -I "$LAN_DEV" "$addr" >/dev/null 2>/dev/null
 		fi
 	done
+	
+	#Clears the probe list.
+	probe_list=""
 
 	return 0
 }
@@ -409,21 +422,19 @@ config_host() {
 	config_get mac "$1" mac
 	config_get slaac "$1" slaac "0"
 
-	#Ignore entry if required options are absent.
-	if [ -z "$name" ] || [ -z "$mac" ] || [ -z "$slaac" ]; then
+	#Ignore entry if required options are absent or disabled.
+	if [ -z "$name" ] || [ -z "$slaac" ] || [ "$slaac" = "0" ]; then
 		return 0
 	fi
 
-	#Do nothing if slaac option is disabled
-	[ "$slaac" != "0" ] || return 0
-	
 	#slaac option is enabled. Check if it contains a custom IID.
-	local iid
+	local iid=""
 	if [ "$slaac" != "1" ]; then
 		#Use custom IID
-		iid="$slaac"
-	else
+		iid=$(echo "$slaac" | awk '{print tolower($0)}')
+	elif [ -n "$mac" ]; then
 		#Generates EUI-64 interface identifier based on MAC
+		mac=$(echo "$mac" | awk '{print tolower($0)}')
 		gen_eui64 iid "$mac"
 	fi
 
@@ -441,19 +452,19 @@ config_host() {
 	#Creates hosts file entries with link-local, ULA and GUA prefixes with corresponding IIDs.
 	local suffix
 	suffix=""
-	if [ "$ll_iid" != "0" ]; then
+	if [ -n "$ll_iid" ] && [ "$ll_iid" != "0" ]; then
 		if [ -n "${LL_LABEL}" ]; then suffix="${LL_LABEL}.${DOMAIN}"; fi
 		echo "fe80::${ll_iid} ${name}${suffix}" >> /tmp/hosts/ip6neigh
 	fi
 	
 	suffix=""
-	if [ -n "$ula_prefix" ] && [ "$ula_iid" != "0" ]; then
+	if [ -n "$ula_prefix" ] && [ -n "$ula_iid" ] && [ "$ula_iid" != "0" ]; then
 		if [ -n "${ULA_LABEL}" ]; then suffix="${ULA_LABEL}.${DOMAIN}"; fi
 		echo "${ula_prefix}:${ula_iid} ${name}${suffix}" >> /tmp/hosts/ip6neigh
 	fi
 	
 	suffix=""
-	if [ -n "$gua_prefix" ] && [ "$gua_iid" != "0" ]; then
+	if [ -n "$gua_prefix" ] && [ -n "$gua_iid" ] && [ "$gua_iid" != "0" ]; then
 		if [ -n "${GUA_LABEL}" ]; then suffix="${GUA_LABEL}.${DOMAIN}"; fi
 		echo "${gua_prefix}:${gua_iid} ${name}${suffix}" >> /tmp/hosts/ip6neigh
 	fi

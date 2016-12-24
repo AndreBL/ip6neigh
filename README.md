@@ -41,8 +41,12 @@ IPv6 addresses are difficult to remember. DNS provides an abstraction layer, so 
 4. Create UCI config file `/etc/config/ip6neigh`
 
    Example config is at: [ip6neigh](https://github.com/AndreBL/ip6neigh/blob/master/etc/config/ip6neigh)
+   
+5. (Optional) Edit your current dhcp config file /etc/config/dhcp for adding predefined SLAAC hosts. 
 
-5. Start it...
+   Examples provided at: [dhcp](https://github.com/AndreBL/ip6neigh/blob/master/etc/config/dhcp)
+
+6. Start it...
 manually with
 
     ```
@@ -56,12 +60,19 @@ manually with
 	sync
 	reboot
 	```
-	
-6. Check if your hosts file is being populated:
+7. Check the log file:
+
+   ```
+   cat /tmp/log/ip6neigh.log
+   ```
+   
+8. Check if your hosts file is being populated:
 
    ```
    cat /tmp/hosts/ip6neigh
    ```
+   
+9. Use names instead of addresses for connecting to IPv6 hosts in your network.
 
 ## Contributors
 

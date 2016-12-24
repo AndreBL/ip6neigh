@@ -1,0 +1,42 @@
+# Example sections to be put in /etc/config/dhcp for generating
+# predefined SLAAC addresses and naming them with ip6neigh script.
+#
+# DO NOT overwrite your OpenWrt dhcp config file with this one. Use the
+# examples to edit your current configuration. IPv4 options are not shown
+# in the examples. You may want to keep your current IPv4 settings. Do not
+# remove them just because they are not shown in the examples.
+#
+# New options for host sections:
+# slaac		0=disabled, 1=enabled with EUI-64 IID, other value means
+#			"use this custom IID". Use a single leading ':' if the IID
+#			starts with zeros. See the example configs below.
+# ll_iid	Override slaac IID for link-local address
+# ula_iid	Override slaac IID for ULA address
+# gua_iid	Override slaac IID for GUA address
+	
+
+# Devices that use EUI-64 interface identifiers (IIDs) for all scopes:
+config host
+	option name		'Android-John'
+	#Copy the MAC address of the device.
+	option mac		'1a:41:8e:83:66:74'
+	option slaac	'1'
+
+
+# Windows machines or other hosts that do not use EUI-64 IIDs but
+# use other static IIDs instead:
+config host
+	option name		'Laptop-Paul'
+	#Copy the interface identifier from the link-local address of
+	#of the device.
+	option slaac	'daa1:4554:747b:1f50'
+
+
+# Adding local DNS names to the router itself:
+config host
+	option name		'Router'
+	#Copy the MAC address of the LAN interface of your router.
+	option mac		'e6:9e:b4:fd:e4:70'
+	option slaac	'1'
+	option ula_iid	':1'
+	option gua_iid	':1'
