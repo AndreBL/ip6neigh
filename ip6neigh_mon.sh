@@ -30,7 +30,7 @@ config_get gua_label config gua_label
 config_get TMP_LABEL config tmp_label TMP
 config_get PROBE_EUI64 config probe_eui64 1
 config_get_bool PROBE_IID config probe_iid 1
-config_get UNKNOWN config unknown "Unknown-"
+config_get UNKNOWN config unknown "Unknown"
 config_get_bool LOAD_STATIC config load_static 1
 config_get LOG config log 0
 
@@ -236,6 +236,36 @@ dhcp_name() {
 	return 1
 }
 
+#Searches for the OUI of the MAC in a manufacturer list.
+oui_name() {
+	local mac="$2"
+	local oui="${mac:0:6}"
+	
+	#Fails if OUI file does not exist.
+	[ -f "/root/oui.gz" ] || return 1
+	
+	#Check if the MAC is locally administered.
+	if [ "$((0x${oui:0:2} & 0x02))" != 0 ]; then
+		#Returns this name and success.
+		eval "$1='LocAdmin'"
+		return 0
+	fi
+
+	#Searches for the OUI in the database.
+	local reg=$(gunzip -c /root/oui.gz | grep -m 1 "^$oui")
+	local oname="${reg:6}"
+	
+	#Check if found.
+	if [ -n "$oname" ]; then
+		#Returns the manufacturer name and success code.
+		eval "$1='$oname'"
+		return 0
+	fi
+
+	#Manufacturer not found. Returns fail code.
+	return 2
+}
+
 #Creates a name for the host.
 create_name() {
 	local mac="$2"
@@ -246,9 +276,17 @@ create_name() {
 	if ! dhcp_name cname "$mac"; then
 		#Create a name based on MAC address if allowed to do so.
 		if [ "$generate" -gt 0 ] && [ "${UNKNOWN}" != 0 ]; then
-			local nic
-			nic=$(echo "$mac" | tr -d ':' | tail -c 7)
-			cname="${UNKNOWN}${nic}"
+			local upmac=$(echo "$mac" | tr -d ':' | awk '{print toupper($0)}')
+			local nic="${upmac:6}"
+			local manuf
+			
+			#Tries to get a name based on the OUI part of the MAC.
+			if oui_name manuf "$upmac"; then
+				cname="_${manuf}-${nic}"
+			else
+				#If it fails, use the specified unknown string.
+				cname="_${UNKNOWN}-${nic}"
+			fi
 		else
 			#No source for name. Returns error.
 			return 1
@@ -278,7 +316,7 @@ get_name() {
 	
 	#Unknown name?
 	if [ "$UNKNOWN" != "0" ]; then
-		echo "$gname" | grep -q -E "^${UNKNOWN}[0-9,a-f]{6}(\.|$)"
+		echo "$gname" | grep -q -E "^_[0-9,a-z,A-Z]+-[0-9,A-F]{6}(\.|$)"
 		[ "$?" = 0 ] && return 2
 	fi
 	
@@ -340,7 +378,7 @@ process() {
 					#Create name for address, not allowing to generate unknown.
 					if create_name name "$mac" 0; then
 						#Success creating name. Replaces the unknown name.
-						logmsg "Host $currname now has got a proper name. Replacing all entries."
+						logmsg "Unknown host $currname now has got a proper name. Replacing all entries."
 						rename "$currname" "$name"
 					fi
 
