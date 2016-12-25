@@ -219,7 +219,7 @@ dhcp_name() {
 
 	#Look for a DHCPv6 lease with DUID-LL or DUID-LLT matching the neighbor's MAC address.
 	match=$(echo "$mac" | tr -d ':')
-	dname=$(grep -m 1 -E "^# ${LAN_DEV} (00010001.{8}|00030001)${match} " /tmp/hosts/odhcpd | cut -d ' ' -f5)
+	dname=$(grep -m 1 -E "^# ${LAN_DEV} (00010001.{8}|00030001)${match} [^ ]* [^-]" /tmp/hosts/odhcpd | cut -d ' ' -f5)
 
 	#If couldn't find a match in DHCPv6 leases then look into the DHCPv4 leases file.
 	if [ -z "$dname" ]; then
