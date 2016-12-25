@@ -3,7 +3,7 @@
 START=96
 
 start() {
-	pgrep ip6neigh_mon.sh && return 0
+	pgrep -f ip6neigh_mon.sh && return 0
 
 	SERVICE_DAEMONIZE=1
 	service_start /root/ip6neigh_mon.sh -s
