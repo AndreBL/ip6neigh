@@ -78,12 +78,12 @@ add_cache() {
 	echo "${mac} ${type} ${name}" >> /tmp/ip6neigh.cache
 }
 
-#Removes entry from the cache file
+#Removes entry from the cache file if has a dynamic type.
 remove_cache() {
 	local name="$1"
-	grep -q " ${name}$" /tmp/ip6neigh.cache || return 0
+	grep -q "0 ${name}$" /tmp/ip6neigh.cache || return 0
 	#Must save changes to another temp file and then move it over the main file.
-	grep -v " ${name}$" /tmp/ip6neigh.cache > /tmp/ip6neigh.tmp
+	grep -v "0 ${name}$" /tmp/ip6neigh.cache > /tmp/ip6neigh.tmp
 	mv /tmp/ip6neigh.tmp /tmp/ip6neigh.cache
 
 	logmsg "Removed cached entry: $name"
@@ -100,7 +100,7 @@ rename() {
 	mv /tmp/ip6neigh.tmp /tmp/hosts/ip6neigh
 	
 	#Deletes the old cached entry.
-	grep -v " ${oldname}$" /tmp/ip6neigh.cache > /tmp/ip6neigh.tmp
+	grep -v "0 ${oldname}$" /tmp/ip6neigh.cache > /tmp/ip6neigh.tmp
 	mv /tmp/ip6neigh.tmp /tmp/ip6neigh.cache
 
 	logmsg "Renamed host: $oldname to $newname"
@@ -253,7 +253,7 @@ dhcp_name() {
 		
 		#Success getting name from DHCPv6.
 		if [ -n "$dname" ]; then
-			add_cache "$mac" "$dname" 6
+			add_cache "$mac" "$dname" 60
 			eval "$1='$dname'"
 			return 0
 		fi
@@ -265,7 +265,7 @@ dhcp_name() {
 		
 		#Success getting name from DHCPv4.
 		if [ -n "$dname" ]; then
-			add_cache "$mac" "$dname" 4
+			add_cache "$mac" "$dname" 40
 			eval "$1='$dname'"
 			return 0
 		fi
@@ -337,8 +337,8 @@ manuf_name() {
 		logmsg "Name conflict for ${mac}. Trying ${mname}."
 	done
 	
-	#Writes entry to the cache with type 1.
-	add_cache "$mac" "$mname" 1
+	#Writes entry to the cache with type 10.
+	add_cache "$mac" "$mname" 10
  	
 	#Returns the newly created name.
 	eval "$1='$mname'"
@@ -359,7 +359,7 @@ create_name() {
 		local type=$(echo "$lease" | cut -d ' ' -f2)
 		
 		#Check if the cached entry can be used in this call.
-		if [ "$acceptmanuf" -gt 0 ] || [ "$type" != 1 ]; then
+		if [ "$acceptmanuf" -gt 0 ] || [ "$type" != 10 ]; then
 			#Get name and use it.
 			cname=$(echo "$lease" | cut -d ' ' -f3)
 			logmsg "Using cached name for ${mac}: ${cname}"
@@ -404,7 +404,7 @@ get_name() {
 	eval "$1='$fname'"
 	
 	#Manufacturer name?
-	grep -q " 1 ${fname}$" /tmp/ip6neigh.cache && return 2
+	grep -q " 10 ${fname}$" /tmp/ip6neigh.cache && return 2
 
 	#Temporary name?
 	echo "$gname" | grep -q "^[^\.]*${TMP_LABEL}\."
@@ -570,14 +570,14 @@ config_host() {
 	
 	#Populate cache with name, depending on supplied options.
 	if [ "$LOAD_STATIC" -gt 0 ] && [ "$slaac" != "0" ]; then
-		#Adds the name to the cache with type 0
-		add_cache "$mac" "$name" 0
+		#Adds the name to the cache with type 21
+		add_cache "$mac" "$name" 21
 	elif [ "$DHCPV6_NAMES" -gt 0 ] && [ -n "$duid" ]; then
-		#Adds the name to the cache with type 6
-		add_cache "$mac" "$name" 6
+		#Adds the name to the cache with type 61
+		add_cache "$mac" "$name" 61
 	elif [ "$DHCPV4_NAMES" -gt 0 ]; then
-		#Adds the name to the cache with type 4
-		add_cache "$mac" "$name" 4
+		#Adds the name to the cache with type 41
+		add_cache "$mac" "$name" 41
 	fi
 
 	#Nothing else to be done if not configured for loading static leases
