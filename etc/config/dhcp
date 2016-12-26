@@ -27,6 +27,8 @@ config host
 # use other static IIDs instead:
 config host
 	option name		'Laptop-Paul'
+	#Copy the MAC address of the device.
+	option mac		'2e:36:e7:85:d3:3b'
 	#Copy the interface identifier from the link-local address of
 	#of the device.
 	option slaac	'daa1:4554:747b:1f50'

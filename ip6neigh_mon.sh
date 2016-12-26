@@ -67,6 +67,7 @@ remove() {
 	return 0
 }
 
+#Adds entry to cache file
 add_cache() {
 	local mac="$1"
 	local name="$2"
@@ -361,7 +362,7 @@ create_name() {
 		if [ "$acceptmanuf" -gt 0 ] || [ "$type" != 1 ]; then
 			#Get name and use it.
 			cname=$(echo "$lease" | cut -d ' ' -f2)
-			logmsg "Using cached entry for ${mac}: ${cname}"
+			logmsg "Using cached name for ${mac}: ${cname}"
 			eval "$1='$cname'"
 			return 0
 		fi
@@ -558,18 +559,20 @@ config_host() {
 	config_get slaac "$1" slaac "0"
 
 	#Ignore entry if required options are absent or disabled.
-	if [ -z "$name" ] || [ -z "$slaac" ] || [ "$slaac" = "0" ]; then
+	if [ -z "$slaac" ] || [ "$slaac" = "0" ] || [ -z "$name" ] || [ -z "$mac" ]; then
 		return 0
 	fi
+	
+	#Converts user typed MAC to lowercase
+	mac=$(echo "$mac" | awk '{print tolower($0)}')
 
 	#slaac option is enabled. Check if it contains a custom IID.
 	local iid=""
 	if [ "$slaac" != "1" ]; then
 		#Use custom IID
 		iid=$(echo "$slaac" | awk '{print tolower($0)}')
-	elif [ -n "$mac" ]; then
+	else
 		#Generates EUI-64 interface identifier based on MAC
-		mac=$(echo "$mac" | awk '{print tolower($0)}')
 		gen_eui64 iid "$mac"
 	fi
 
@@ -583,6 +586,9 @@ config_host() {
 	config_get gua_iid "$1" gua_iid "$iid"
 	
 	logmsg "Generating predefined SLAAC addresses for $name"
+	
+	#Adds the name to the cache with type 0
+	add_cache "$mac" "$name" 0
 
 	#Creates hosts file entries with link-local, ULA and GUA prefixes with corresponding IIDs.
 	local suffix
