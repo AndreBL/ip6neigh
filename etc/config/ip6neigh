@@ -31,11 +31,18 @@ config ip6neigh 'config'
 	# Default: 'TMP'
 	#option tmp_label	'TMP'
 
-	# Name to be used for hosts that do not supply their name to DHCPv6 or
-	# DHCPv4 servers. It will be preceeded by underscore. A dash sign plus a six 
-	# digit (hex) NIC identifier will be appended after it. Use '0' if you want to
-	# disable this feature. Default: 'Unknown' Resulting example: _Unknown-BEEF01.lan
-	#option	unknown		'Unknown'
+	# Get names from DHCPv6 leases. 0=disabled, 1=enabled.
+	# Default: '1'
+	#option dhcpv6_names	'1'
+	
+	# Get names from DHCPv4 leases. 0=disabled, 1=enabled.
+	# Default: '1'
+	#option dhcpv4_names	'1'
+	
+	# Generate names based on the manufacturer of the device if DHCPv6/v4 names
+	# were not available. 0=disabled, 1=enabled.
+	# Default: '1'
+	#option manuf_names	'1'
 
 	# Enable loading of predefined static or MAC-based IIDs from /etc/config/dhcp.
 	# 0=disabled, 1=enabled. Default: '1'

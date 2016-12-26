@@ -28,9 +28,11 @@ config_get LL_LABEL config ll_label LL
 config_get ULA_label config ula_label
 config_get gua_label config gua_label
 config_get TMP_LABEL config tmp_label TMP
+config_get_bool DHCPV6_NAMES config dhcpv6_names 1
+config_get_bool DHCPV4_NAMES config dhcpv4_names 1
+config_get_bool MANUF_NAMES config manuf_names 1
 config_get PROBE_EUI64 config probe_eui64 1
 config_get_bool PROBE_IID config probe_iid 1
-config_get UNKNOWN config unknown "Unknown"
 config_get_bool LOAD_STATIC config load_static 1
 config_get LOG config log 0
 
@@ -48,7 +50,7 @@ add() {
 	echo "$addr $name" >> /tmp/hosts/ip6neigh
 	killall -1 dnsmasq
 
-	logmsg "Added: $name $addr"
+	logmsg "Added host: $name $addr"
 	
 	return 0
 }
@@ -58,10 +60,32 @@ remove() {
 	local addr="$1"
 	grep -q "^$addr " /tmp/hosts/ip6neigh || return 0
 	#Must save changes to another temp file and then move it over the main file.
-	grep -v "^$addr " /tmp/hosts/ip6neigh > /tmp/ip6neigh
-	mv /tmp/ip6neigh /tmp/hosts/ip6neigh
+	grep -v "^$addr " /tmp/hosts/ip6neigh > /tmp/ip6neigh.tmp
+	mv /tmp/ip6neigh.tmp /tmp/hosts/ip6neigh
 
-	logmsg "Removed: $addr"
+	logmsg "Removed host: $addr"
+	return 0
+}
+
+add_cache() {
+	local mac="$1"
+	local name="$2"
+	local type="$3"
+	
+	#Write the name to the cache file.
+	logmsg "Creating type $type cache entry for $mac: ${name}"
+	echo "${mac} ${name} ${type}" >> /tmp/ip6neigh.cache
+}
+
+#Removes entry from the cache file
+remove_cache() {
+	local name="$1"
+	grep -q " ${name} " /tmp/ip6neigh.cache || return 0
+	#Must save changes to another temp file and then move it over the main file.
+	grep -v " ${name} " /tmp/ip6neigh.cache > /tmp/ip6neigh.tmp
+	mv /tmp/ip6neigh.tmp /tmp/ip6neigh.cache
+
+	logmsg "Removed cached entry: $name"
 	return 0
 }
 
@@ -71,10 +95,14 @@ rename() {
 	local newname="$2"
 
 	#Must save changes to another temp file and then move it over the main file.
-	sed "s/ ${oldname}/ ${newname}/g" /tmp/hosts/ip6neigh > /tmp/ip6neigh
-	mv /tmp/ip6neigh /tmp/hosts/ip6neigh
+	sed "s/ ${oldname}/ ${newname}/g" /tmp/hosts/ip6neigh > /tmp/ip6neigh.tmp
+	mv /tmp/ip6neigh.tmp /tmp/hosts/ip6neigh
+	
+	#Deletes the old cached entry.
+	grep -v " ${oldname} " /tmp/ip6neigh.cache > /tmp/ip6neigh.tmp
+	mv /tmp/ip6neigh.tmp /tmp/ip6neigh.cache
 
-	logmsg "Replaced names: $oldname to $newname"
+	logmsg "Renamed host: $oldname to $newname"
 	return 0
 }
 
@@ -215,21 +243,31 @@ probe_addresses() {
 dhcp_name() {
 	local mac="$2"
 	local match
-	local dname
+	local dname=""
 
 	#Look for a DHCPv6 lease with DUID-LL or DUID-LLT matching the neighbor's MAC address.
-	match=$(echo "$mac" | tr -d ':')
-	dname=$(grep -m 1 -E "^# ${LAN_DEV} (00010001.{8}|00030001)${match} [^ ]* [^-]" /tmp/hosts/odhcpd | cut -d ' ' -f5)
+	if [ "$DHCPV6_NAMES" -gt 0 ]; then
+		match=$(echo "$mac" | tr -d ':')
+		dname=$(grep -m 1 -E "^# ${LAN_DEV} (00010001.{8}|00030001)${match} [^ ]* [^-]" /tmp/hosts/odhcpd | cut -d ' ' -f5)
+		
+		#Success getting name from DHCPv6.
+		if [ -n "$dname" ]; then
+			add_cache "$mac" "$dname" 6
+			eval "$1='$dname'"
+			return 0
+		fi
+	fi
 
 	#If couldn't find a match in DHCPv6 leases then look into the DHCPv4 leases file.
-	if [ -z "$dname" ]; then
+	if [ "$DHCPV4_NAMES" -gt 0 ]; then
 		dname=$(grep -m 1 -E " $mac [^ ]{7,15} ([^*])" /tmp/dhcp.leases | cut -d ' ' -f4)
-	fi
-	
-	#If succeded, returns the name and success.
-	if [ -n "$dname" ]; then
-		eval "$1='$dname'"
-		return 0
+		
+		#Success getting name from DHCPv4.
+		if [ -n "$dname" ]; then
+			add_cache "$mac" "$dname" 4
+			eval "$1='$dname'"
+			return 0
+		fi
 	fi
 	
 	#Failed. Return error.
@@ -238,11 +276,11 @@ dhcp_name() {
 
 #Searches for the OUI of the MAC in a manufacturer list.
 oui_name() {
-	local mac="$2"
-	local oui="${mac:0:6}"
-	
 	#Fails if OUI file does not exist.
 	[ -f "/root/oui.gz" ] || return 1
+	
+	local mac="$2"
+	local oui="${mac:0:6}"
 	
 	#Check if the MAC is locally administered.
 	if [ "$((0x${oui:0:2} & 0x02))" != 0 ]; then
@@ -266,45 +304,95 @@ oui_name() {
 	return 2
 }
 
-#Creates a name for the host.
-create_name() {
+#Creates a name based on the manufacturer's name of the device.
+manuf_name() {
 	local mac="$2"
-	local generate="$3"
-	local cname
+	local mname
 	
-	#Try to get a name from DHCPv6/v4 leases. If it fails, decide what to do based on type.
-	if ! dhcp_name cname "$mac"; then
-		#Create a name based on MAC address if allowed to do so.
-		if [ "$generate" -gt 0 ] && [ "${UNKNOWN}" != 0 ]; then
-			local upmac=$(echo "$mac" | tr -d ':' | awk '{print toupper($0)}')
-			local nic="${upmac:6}"
-			local manuf
-			
-			#Tries to get a name based on the OUI part of the MAC.
-			if oui_name manuf "$upmac"; then
-				cname="_${manuf}-${nic}"
-			else
-				#If it fails, use the specified unknown string.
-				cname="_${UNKNOWN}-${nic}"
-			fi
-		else
-			#No source for name. Returns error.
-			return 1
+	#Get info from the MAC.
+	local upmac=$(echo "$mac" | tr -d ':' | awk '{print toupper($0)}')
+	local nicid="${upmac:9}"
+
+	#Tries to get a name based on the OUI part of the MAC. Otherwise use Unknown.
+	local manuf="Unknown"
+	oui_name manuf "$upmac"
+
+	#Keeps trying to create unique name.
+	mname="${manuf}-${nicid}"
+	local count=0
+	local code
+	while grep -q " ${mname} " /tmp/ip6neigh.cache ; do
+		#Prevent infinite loop.
+		if [ "$code" -ge 10 ]; then
+			logmsg "Too many name conflicts for ${mname}. Giving up."
+			return 2
 		fi
-	fi
+		
+		#Generate new name.
+		code=$(printf %x $count)
+		code=$(echo "${mac}${code}" | tr -d ':' | md5sum)
+		mname="${manuf}-${code:29:3}"
+		code=$(($code+1))
+		logmsg "Name conflict for ${mac}. Trying ${mname}."
+	done
 	
-	#Success
-	eval "$1='$cname'"
+	#Writes entry to the cache with type 1.
+	add_cache "$mac" "$mname" 1
+ 	
+	#Returns the newly created name.
+	eval "$1='$mname'"
 	return 0
 }
 
-#Gets the current name for an IPv6 address from the hosts file
+#Creates a name for the host.
+create_name() {
+	local mac="$2"
+	local acceptmanuf="$3"
+	local cname
+	
+	#Look for a name in the cache file.
+	local lease
+	lease=$(grep -m 1 "^${mac} " /tmp/ip6neigh.cache)
+	if [ "$?" = 0 ]; then
+		#Get type.
+		local type=$(echo "$lease" | cut -d ' ' -f3)
+		
+		#Check if the cached entry can be used in this call.
+		if [ "$acceptmanuf" -gt 0 ] || [ "$type" != 1 ]; then
+			#Get name and use it.
+			cname=$(echo "$lease" | cut -d ' ' -f2)
+			logmsg "Using cached entry for ${mac}: ${cname}"
+			eval "$1='$cname'"
+			return 0
+		fi
+	fi
+
+	#Try to get a name from DHCPv6/v4 leases.
+	if dhcp_name cname "$mac"; then
+		eval "$1='$cname'"
+		return 0
+	fi
+
+	#Generates name from manufacturer if allowed in this call.
+	if [ "$MANUF_NAMES" -gt 0 ] && [ "$acceptmanuf" -gt 0 ]; then
+			#Get manufacturer name.
+			if manuf_name cname "$mac"; then
+				eval "$1='$cname'"
+				return 0
+			fi
+	fi
+	
+	#Returns fail
+	return 1
+}
+
+#Gets the current name for an IPv6 address
 get_name() {
 	local addr="$2"
 	local matched
 	
 	#Check if the address already exists
-	matched=$(grep "^$addr " /tmp/hosts/*)
+	matched=$(grep -m 1 "^$addr " /tmp/hosts/*)
 	
 	#Address is new? (not found)
 	[ "$?" != 0 ] && return 3
@@ -314,12 +402,9 @@ get_name() {
 	local fname=$(echo "$gname" | cut -d '.' -f1)
 	eval "$1='$fname'"
 	
-	#Unknown name?
-	if [ "$UNKNOWN" != "0" ]; then
-		echo "$gname" | grep -q -E "^_[0-9,a-z,A-Z]+-[0-9,A-F]{6}(\.|$)"
-		[ "$?" = 0 ] && return 2
-	fi
-	
+	#Manufacturer name?
+	grep -q " ${fname} 1" /tmp/ip6neigh.cache && return 2
+
 	#Temporary name?
 	echo "$gname" | grep -q "^[^\.]*${TMP_LABEL}\."
 	[ "$?" = 0 ] && return 1
@@ -338,19 +423,31 @@ process() {
 	for status; do true; done
 	[ "$status" != "STALE" ] || return 0
 
+	#Get current host entry info.
+	local name
+	local currname
+	local type
+	get_name currname "$addr"
+	type="$?"
+
 	case "$status" in
-		#Neighbor is unreachable. Remove it from hosts file.
-		"FAILED") remove "$addr";;
+		#Neighbor is unreachable. Must be removed.
+		"FAILED")
+			#First remove host entry.
+			remove "$addr"
+					
+			#Check if it was the last entry with that name.
+			if ! grep -q -E " ${currname}(\.|$)" /tmp/hosts/ip6neigh ; then
+				#Remove from cache.
+				remove_cache "${currname}"
+			fi
+		
+			return 0
+		;;
 
 		#Neighbor is reachable. Must be processed.
 		"REACHABLE")
-			#Check current name and decide what to do based on its type.
-			local name
-			local currname
-			local type
-			get_name currname "$addr"
-			type="$?"
-			
+			#Decide what to do based on type.
 			case "$type" in
 				#Address already has a stable name. Nothing to be done.
 				0) return 0;;
@@ -373,9 +470,9 @@ process() {
 					fi
 				;;
 				
-				#Address was already named as unknown.
+				#Address is using manufacturer name.
 				2)
-					#Create name for address, not allowing to generate unknown.
+					#Create name for address, not allowing to generate from manufacturer again.
 					if create_name name "$mac" 0; then
 						#Success creating name. Replaces the unknown name.
 						logmsg "Unknown host $currname now has got a proper name. Replacing all entries."
@@ -387,7 +484,7 @@ process() {
 				
 				#Address is new.
 				3)
-					#Create name for address, allowing to generate unknown.
+					#Create name for address, allowing to generate from manufacturer.
 					if ! create_name name "$mac" 1; then
 						#Nothing to be done if could not get a name.
 						return 0
@@ -548,7 +645,10 @@ if [ -n "$ULA_LABEL" ]; then ULA_LABEL=".${ULA_LABEL}" ; fi
 if [ -n "$GUA_LABEL" ]; then GUA_LABEL=".${GUA_LABEL}" ; fi
 if [ -n "$TMP_LABEL" ]; then TMP_LABEL=".${TMP_LABEL}" ; fi
 
-#Clears the output file
+#Clears the cache file
+> /tmp/ip6neigh.cache
+
+#Clears the output hosts file
 > /tmp/hosts/ip6neigh
 
 #Process /etc/config/dhcp an look for hosts with 'slaac' options set
