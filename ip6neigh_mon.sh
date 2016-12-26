@@ -75,15 +75,15 @@ add_cache() {
 	
 	#Write the name to the cache file.
 	logmsg "Creating type $type cache entry for $mac: ${name}"
-	echo "${mac} ${name} ${type}" >> /tmp/ip6neigh.cache
+	echo "${mac} ${type} ${name}" >> /tmp/ip6neigh.cache
 }
 
 #Removes entry from the cache file
 remove_cache() {
 	local name="$1"
-	grep -q " ${name} " /tmp/ip6neigh.cache || return 0
+	grep -q " ${name}$" /tmp/ip6neigh.cache || return 0
 	#Must save changes to another temp file and then move it over the main file.
-	grep -v " ${name} " /tmp/ip6neigh.cache > /tmp/ip6neigh.tmp
+	grep -v " ${name}$" /tmp/ip6neigh.cache > /tmp/ip6neigh.tmp
 	mv /tmp/ip6neigh.tmp /tmp/ip6neigh.cache
 
 	logmsg "Removed cached entry: $name"
@@ -100,7 +100,7 @@ rename() {
 	mv /tmp/ip6neigh.tmp /tmp/hosts/ip6neigh
 	
 	#Deletes the old cached entry.
-	grep -v " ${oldname} " /tmp/ip6neigh.cache > /tmp/ip6neigh.tmp
+	grep -v " ${oldname}$" /tmp/ip6neigh.cache > /tmp/ip6neigh.tmp
 	mv /tmp/ip6neigh.tmp /tmp/ip6neigh.cache
 
 	logmsg "Renamed host: $oldname to $newname"
@@ -322,7 +322,7 @@ manuf_name() {
 	mname="${manuf}-${nicid}"
 	local count=0
 	local code
-	while grep -q " ${mname} " /tmp/ip6neigh.cache ; do
+	while grep -q " ${mname}$" /tmp/ip6neigh.cache ; do
 		#Prevent infinite loop.
 		if [ "$code" -ge 10 ]; then
 			logmsg "Too many name conflicts for ${mname}. Giving up."
@@ -356,12 +356,12 @@ create_name() {
 	lease=$(grep -m 1 "^${mac} " /tmp/ip6neigh.cache)
 	if [ "$?" = 0 ]; then
 		#Get type.
-		local type=$(echo "$lease" | cut -d ' ' -f3)
+		local type=$(echo "$lease" | cut -d ' ' -f2)
 		
 		#Check if the cached entry can be used in this call.
 		if [ "$acceptmanuf" -gt 0 ] || [ "$type" != 1 ]; then
 			#Get name and use it.
-			cname=$(echo "$lease" | cut -d ' ' -f2)
+			cname=$(echo "$lease" | cut -d ' ' -f3)
 			logmsg "Using cached name for ${mac}: ${cname}"
 			eval "$1='$cname'"
 			return 0
@@ -404,7 +404,7 @@ get_name() {
 	eval "$1='$fname'"
 	
 	#Manufacturer name?
-	grep -q " ${fname} 1" /tmp/ip6neigh.cache && return 2
+	grep -q " 1 ${fname}$" /tmp/ip6neigh.cache && return 2
 
 	#Temporary name?
 	echo "$gname" | grep -q "^[^\.]*${TMP_LABEL}\."
@@ -552,19 +552,40 @@ process() {
 config_host() {
 	local name
 	local mac
+	local duid
 	local slaac
 
 	config_get name "$1" name
 	config_get mac "$1" mac
+	config_get duid "$1" duid
 	config_get slaac "$1" slaac "0"
-
-	#Ignore entry if required options are absent or disabled.
-	if [ -z "$slaac" ] || [ "$slaac" = "0" ] || [ -z "$name" ] || [ -z "$mac" ]; then
-		return 0
+	
+	#Ignore entry if the required options are missing.
+	if [ -z "$name" ] || [ -z "$mac" ]; then
+		return 0;
 	fi
 	
 	#Converts user typed MAC to lowercase
 	mac=$(echo "$mac" | awk '{print tolower($0)}')
+	
+	#Populate cache with name, depending on supplied options.
+	if [ "$LOAD_STATIC" -gt 0 ] && [ "$slaac" != "0" ]; then
+		#Adds the name to the cache with type 0
+		add_cache "$mac" "$name" 0
+	elif [ "$DHCPV6_NAMES" -gt 0 ] && [ -n "$duid" ]; then
+		#Adds the name to the cache with type 6
+		add_cache "$mac" "$name" 6
+	elif [ "$DHCPV4_NAMES" -gt 0 ]; then
+		#Adds the name to the cache with type 4
+		add_cache "$mac" "$name" 4
+	fi
+
+	#Nothing else to be done if not configured for loading static leases
+	#or slaac option is not enabled for this host.
+	[ "$LOAD_STATIC" -gt 0 ] || return 0
+	if [ -z "$slaac" ] || [ "$slaac" = "0" ]; then
+		return 0
+	fi
 
 	#slaac option is enabled. Check if it contains a custom IID.
 	local iid=""
@@ -586,9 +607,6 @@ config_host() {
 	config_get gua_iid "$1" gua_iid "$iid"
 	
 	logmsg "Generating predefined SLAAC addresses for $name"
-	
-	#Adds the name to the cache with type 0
-	add_cache "$mac" "$name" 0
 
 	#Creates hosts file entries with link-local, ULA and GUA prefixes with corresponding IIDs.
 	local suffix
@@ -657,13 +675,11 @@ if [ -n "$TMP_LABEL" ]; then TMP_LABEL=".${TMP_LABEL}" ; fi
 #Clears the output hosts file
 > /tmp/hosts/ip6neigh
 
-#Process /etc/config/dhcp an look for hosts with 'slaac' options set
-if [ "$LOAD_STATIC" -gt 0 ]; then
-	echo "#Predefined SLAAC addresses" >> /tmp/hosts/ip6neigh
-	config_load dhcp
-	config_foreach config_host host
-	echo -e >> /tmp/hosts/ip6neigh
-fi
+#Process /etc/config/dhcp
+echo "#Predefined SLAAC addresses" >> /tmp/hosts/ip6neigh
+config_load dhcp
+config_foreach config_host host
+echo -e >> /tmp/hosts/ip6neigh
 	
 echo "#Discovered IPv6 neighbors" >> /tmp/hosts/ip6neigh
 
