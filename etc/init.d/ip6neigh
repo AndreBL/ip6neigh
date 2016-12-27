@@ -2,11 +2,13 @@
 
 START=96
 
+readonly SCRIPT_FILE="/root/ip6neigh_mon.sh"
+
 start() {
 	pgrep -f ip6neigh_mon.sh && return 0
 
 	SERVICE_DAEMONIZE=1
-	service_start /root/ip6neigh_mon.sh -s
+	service_start "$SCRIPT_FILE" -s
 
 	return 0
 }

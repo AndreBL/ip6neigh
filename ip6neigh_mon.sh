@@ -20,6 +20,12 @@
 . /lib/functions.sh
 . /lib/functions/network.sh
 
+#Program definitions
+readonly HOSTS_FILE="/tmp/hosts/ip6neigh"
+readonly CACHE_FILE="/tmp/ip6neigh.cache"
+readonly OUI_FILE="/root/oui.gz"
+readonly TEMP_FILE="/tmp/ip6neigh.tmp"
+
 #Loads UCI configuration file
 reset_cb
 config_load ip6neigh
@@ -47,7 +53,7 @@ if [ -z "$DOMAIN" ]; then DOMAIN="lan"; fi
 add() {
 	local name="$1"
 	local addr="$2"
-	echo "$addr $name" >> /tmp/hosts/ip6neigh
+	echo "$addr $name" >> "$HOSTS_FILE"
 	killall -1 dnsmasq
 
 	logmsg "Added host: $name $addr"
@@ -58,10 +64,10 @@ add() {
 #Removes entry from hosts file
 remove() {
 	local addr="$1"
-	grep -q "^$addr " /tmp/hosts/ip6neigh || return 0
+	grep -q "^$addr " "$HOSTS_FILE" || return 0
 	#Must save changes to another temp file and then move it over the main file.
-	grep -v "^$addr " /tmp/hosts/ip6neigh > /tmp/ip6neigh.tmp
-	mv /tmp/ip6neigh.tmp /tmp/hosts/ip6neigh
+	grep -v "^$addr " "$HOSTS_FILE" > "$TMP_FILE"
+	mv "$TMP_FILE" "$HOSTS_FILE"
 
 	logmsg "Removed host: $addr"
 	return 0
@@ -75,16 +81,16 @@ add_cache() {
 	
 	#Write the name to the cache file.
 	logmsg "Creating type $type cache entry for $mac: ${name}"
-	echo "${mac} ${type} ${name}" >> /tmp/ip6neigh.cache
+	echo "${mac} ${type} ${name}" >> "$CACHE_FILE"
 }
 
 #Removes entry from the cache file if has a dynamic type.
 remove_cache() {
 	local name="$1"
-	grep -q "0 ${name}$" /tmp/ip6neigh.cache || return 0
+	grep -q "0 ${name}$" "$CACHE_FILE" || return 0
 	#Must save changes to another temp file and then move it over the main file.
-	grep -v "0 ${name}$" /tmp/ip6neigh.cache > /tmp/ip6neigh.tmp
-	mv /tmp/ip6neigh.tmp /tmp/ip6neigh.cache
+	grep -v "0 ${name}$" "$CACHE_FILE" > "$TMP_FILE"
+	mv "$TMP_FILE" "$CACHE_FILE"
 
 	logmsg "Removed cached entry: $name"
 	return 0
@@ -96,12 +102,12 @@ rename() {
 	local newname="$2"
 
 	#Must save changes to another temp file and then move it over the main file.
-	sed "s/ ${oldname}/ ${newname}/g" /tmp/hosts/ip6neigh > /tmp/ip6neigh.tmp
-	mv /tmp/ip6neigh.tmp /tmp/hosts/ip6neigh
+	sed "s/ ${oldname}/ ${newname}/g" "$HOSTS_FILE" > "$TMP_FILE"
+	mv "$TMP_FILE" "$HOSTS_FILE"
 	
 	#Deletes the old cached entry.
-	grep -v "0 ${oldname}$" /tmp/ip6neigh.cache > /tmp/ip6neigh.tmp
-	mv /tmp/ip6neigh.tmp /tmp/ip6neigh.cache
+	grep -v "0 ${oldname}$" "$CACHE_FILE" > "$TMP_FILE"
+	mv "$TMP_FILE" "$CACHE_FILE"
 
 	logmsg "Renamed host: $oldname to $newname"
 	return 0
@@ -147,7 +153,7 @@ is_other_static() {
 	fi
 
 	#Looks for match and returns true if it finds one.
-	grep -q "$match" /tmp/hosts/ip6neigh
+	grep -q "$match" "$HOSTS_FILE"
 	return "$?"	
 }
 
@@ -278,7 +284,7 @@ dhcp_name() {
 #Searches for the OUI of the MAC in a manufacturer list.
 oui_name() {
 	#Fails if OUI file does not exist.
-	[ -f "/root/oui.gz" ] || return 1
+	[ -f "$OUI_FILE" ] || return 1
 	
 	local mac="$2"
 	local oui="${mac:0:6}"
@@ -291,7 +297,7 @@ oui_name() {
 	fi
 
 	#Searches for the OUI in the database.
-	local reg=$(gunzip -c /root/oui.gz | grep -m 1 "^$oui")
+	local reg=$(gunzip -c "$OUI_FILE" | grep -m 1 "^$oui")
 	local oname="${reg:6}"
 	
 	#Check if found.
@@ -322,7 +328,7 @@ manuf_name() {
 	mname="${manuf}-${nicid}"
 	local count=0
 	local code
-	while grep -q " ${mname}$" /tmp/ip6neigh.cache ; do
+	while grep -q " ${mname}$" "$CACHE_FILE" ; do
 		#Prevent infinite loop.
 		if [ "$code" -ge 10 ]; then
 			logmsg "Too many name conflicts for ${mname}. Giving up."
@@ -353,7 +359,7 @@ create_name() {
 	
 	#Look for a name in the cache file.
 	local lease
-	lease=$(grep -m 1 "^${mac} " /tmp/ip6neigh.cache)
+	lease=$(grep -m 1 "^${mac} " "$CACHE_FILE")
 	if [ "$?" = 0 ]; then
 		#Get type.
 		local type=$(echo "$lease" | cut -d ' ' -f2)
@@ -404,7 +410,7 @@ get_name() {
 	eval "$1='$fname'"
 	
 	#Manufacturer name?
-	grep -q " 10 ${fname}$" /tmp/ip6neigh.cache && return 2
+	grep -q " 10 ${fname}$" "$CACHE_FILE" && return 2
 
 	#Temporary name?
 	echo "$gname" | grep -q "^[^\.]*${TMP_LABEL}\."
@@ -438,7 +444,7 @@ process() {
 			remove "$addr"
 					
 			#Check if it was the last entry with that name.
-			if ! grep -q -E " ${currname}(\.|$)" /tmp/hosts/ip6neigh ; then
+			if ! grep -q -E " ${currname}(\.|$)" "$HOSTS_FILE" ; then
 				#Remove from cache.
 				remove_cache "${currname}"
 			fi
@@ -613,19 +619,19 @@ config_host() {
 	suffix=""
 	if [ -n "$ll_iid" ] && [ "$ll_iid" != "0" ]; then
 		if [ -n "${LL_LABEL}" ]; then suffix="${LL_LABEL}.${DOMAIN}"; fi
-		echo "fe80::${ll_iid} ${name}${suffix}" >> /tmp/hosts/ip6neigh
+		echo "fe80::${ll_iid} ${name}${suffix}" >> "$HOSTS_FILE"
 	fi
 	
 	suffix=""
 	if [ -n "$ula_prefix" ] && [ -n "$ula_iid" ] && [ "$ula_iid" != "0" ]; then
 		if [ -n "${ULA_LABEL}" ]; then suffix="${ULA_LABEL}.${DOMAIN}"; fi
-		echo "${ula_prefix}:${ula_iid} ${name}${suffix}" >> /tmp/hosts/ip6neigh
+		echo "${ula_prefix}:${ula_iid} ${name}${suffix}" >> "$HOSTS_FILE"
 	fi
 	
 	suffix=""
 	if [ -n "$gua_prefix" ] && [ -n "$gua_iid" ] && [ "$gua_iid" != "0" ]; then
 		if [ -n "${GUA_LABEL}" ]; then suffix="${GUA_LABEL}.${DOMAIN}"; fi
-		echo "${gua_prefix}:${gua_iid} ${name}${suffix}" >> /tmp/hosts/ip6neigh
+		echo "${gua_prefix}:${gua_iid} ${name}${suffix}" >> "$HOSTS_FILE"
 	fi
 }
 
@@ -670,18 +676,18 @@ if [ -n "$GUA_LABEL" ]; then GUA_LABEL=".${GUA_LABEL}" ; fi
 if [ -n "$TMP_LABEL" ]; then TMP_LABEL=".${TMP_LABEL}" ; fi
 
 #Clears the cache file
-> /tmp/ip6neigh.cache
+> "$CACHE_FILE"
 
 #Clears the output hosts file
-> /tmp/hosts/ip6neigh
+> "$HOSTS_FILE"
 
 #Process /etc/config/dhcp
-echo "#Predefined SLAAC addresses" >> /tmp/hosts/ip6neigh
+echo "#Predefined SLAAC addresses" >> "$HOSTS_FILE"
 config_load dhcp
 config_foreach config_host host
-echo -e >> /tmp/hosts/ip6neigh
+echo -e >> "$HOSTS_FILE"
 	
-echo "#Discovered IPv6 neighbors" >> /tmp/hosts/ip6neigh
+echo "#Discovered IPv6 neighbors" >> "$HOSTS_FILE"
 
 #Send signal to dnsmasq to reload hosts files.
 killall -1 dnsmasq
