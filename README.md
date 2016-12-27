@@ -60,19 +60,55 @@ manually with
 	sync
 	reboot
 	```
-7. Check the log file:
+7. Use names instead of addresses for connecting to IPv6 hosts in your network.
 
-   ```
-   cat /tmp/log/ip6neigh.log
-   ```
-   
-8. Check if your hosts file is being populated:
+## Troubleshooting
 
-   ```
-   cat /tmp/hosts/ip6neigh
-   ```
+`ip6neigh_mon` should start up after step 6 above. You can check that it is running by typing
+```
+# ps | grep ip6negh
+ 3718 root      1356 S    grep ip6neigh
+20882 root      1444 S    {ip6neigh_mon.sh} /bin/sh /root/ip6neigh_mon.sh -s
+20916 root      1448 S    {ip6neigh_mon.sh} /bin/sh /root/ip6neigh_mon.sh -s
+# 
+```
+
+You can also check the long file (enabled/disabled in `/etc/config/ip6negh`)
+
+```
+# cat /tmp/log/ip6neigh.log
+Fri Dec 23 23:44:31 UTC 2016 Starting ip6neigh script for physdev br-lan with domain lan
+Fri Dec 23 23:44:31 UTC 2016 Network does not have ULA prefix. Clearing label for GUAs.
+Fri Dec 23 23:44:31 UTC 2016 Generating predefined SLAAC addresses for router
+Fri Dec 23 23:44:41 UTC 2016 Added: alarm.LL.lan fe80::5048:e4ff:fe4d:a27d
+Fri Dec 23 23:44:54 UTC 2016 Added: alarm.TMP.lan 2001:470:ebbd:4:3466:322a:649a:7172
+Fri Dec 23 23:44:54 UTC 2016 Probing other possible addresses for alarm: fe80::3466:322a:649a:7172 fe80::5048:e4ff:fe4d:a27d 
+..
+Tue Dec 27 01:32:17 UTC 2016 Added: Unknown-01e0a4.LL.lan fe80::d69a:20ff:fe01:e0a4
+Tue Dec 27 01:32:19 UTC 2016 Added: Unknown-01e0a4.TMP.lan 2001:470:ebbd:4:1d82:c1c3:c2a3:d46b
+Tue Dec 27 01:32:19 UTC 2016 Probing other possible addresses for Unknown-01e0a4: fe80::1d82:c1c3:c2a3:d46b fe80::d69a:20ff:fe01:e0a4 
+Tue Dec 27 01:32:20 UTC 2016 Added: hau 2001:470:ebbd:4:d69a:20ff:fe01:e0a4
+Tue Dec 27 01:32:20 UTC 2016 Probing other possible addresses for hau: fe80::d69a:20ff:fe01:e0a4 
+# 
+```
    
-9. Use names instead of addresses for connecting to IPv6 hosts in your network.
+To list the hostnames detected by **ip6neigh**.
+
+```
+# cat /tmp/hosts/ip6neigh 
+#Predefined SLAAC addresses
+
+#Discovered IPv6 neighbors
+fe80::d69a:20ff:fe01:e0a4 hau.LL.lan
+fe80::d69a:20ff:fe01:e0a4 hau.LL.lan
+fe80::5048:e4ff:fe4d:a27d alarm.LL.lan
+fe80::5048:e4ff:fe4d:a27d alarm.LL.lan
+2001:470:ebbd:4:e5c6:4e4b:bc3b:df3 alarm.TMP.lan
+2001:470:ebbd:4:d69a:20ff:fe01:e0a4 hau.lan
+```
+   
+
+   
 
 ## Contributors
 
