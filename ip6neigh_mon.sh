@@ -66,8 +66,8 @@ remove() {
 	local addr="$1"
 	grep -q "^$addr " "$HOSTS_FILE" || return 0
 	#Must save changes to another temp file and then move it over the main file.
-	grep -v "^$addr " "$HOSTS_FILE" > "$TMP_FILE"
-	mv "$TMP_FILE" "$HOSTS_FILE"
+	grep -v "^$addr " "$HOSTS_FILE" > "$TEMP_FILE"
+	mv "$TEMP_FILE" "$HOSTS_FILE"
 
 	logmsg "Removed host: $addr"
 	return 0
@@ -89,8 +89,8 @@ remove_cache() {
 	local name="$1"
 	grep -q "0 ${name}$" "$CACHE_FILE" || return 0
 	#Must save changes to another temp file and then move it over the main file.
-	grep -v "0 ${name}$" "$CACHE_FILE" > "$TMP_FILE"
-	mv "$TMP_FILE" "$CACHE_FILE"
+	grep -v "0 ${name}$" "$CACHE_FILE" > "$TEMP_FILE"
+	mv "$TEMP_FILE" "$CACHE_FILE"
 
 	logmsg "Removed cached entry: $name"
 	return 0
@@ -102,12 +102,12 @@ rename() {
 	local newname="$2"
 
 	#Must save changes to another temp file and then move it over the main file.
-	sed "s/ ${oldname}/ ${newname}/g" "$HOSTS_FILE" > "$TMP_FILE"
-	mv "$TMP_FILE" "$HOSTS_FILE"
+	sed "s/ ${oldname}/ ${newname}/g" "$HOSTS_FILE" > "$TEMP_FILE"
+	mv "$TEMP_FILE" "$HOSTS_FILE"
 	
 	#Deletes the old cached entry.
-	grep -v "0 ${oldname}$" "$CACHE_FILE" > "$TMP_FILE"
-	mv "$TMP_FILE" "$CACHE_FILE"
+	grep -v "0 ${oldname}$" "$CACHE_FILE" > "$TEMP_FILE"
+	mv "$TEMP_FILE" "$CACHE_FILE"
 
 	logmsg "Renamed host: $oldname to $newname"
 	return 0
