@@ -1,6 +1,13 @@
 #!/bin/sh
 
 [ "$ACTION" = "ifup" ] || exit 0
-[ "$INTERFACE" = "lan" ] || [ "$INTERFACE" = "wan6" ] || exit 0
+/etc/init.d/ip6neigh enabled || exit 0
 
-/etc/init.d/ip6neigh enabled && /etc/init.d/ip6neigh restart
+lan_iface=$(uci get ip6neigh.config.lan_iface 2>/dev/null)
+if [ -z "$lan_iface" ]; then lan_iface="lan"; fi
+
+wan_iface=$(uci get ip6neigh.config.wan_iface 2>/dev/null)
+if [ -z "$wan_iface" ]; then wan_iface="wan6"; fi
+
+[ "$INTERFACE" = "$lan_iface" ] || [ "$INTERFACE" = "$wan_iface" ] || exit 0
+/etc/init.d/ip6neigh restart

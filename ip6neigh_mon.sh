@@ -40,7 +40,7 @@ errormsg() {
 [ -f "/etc/config/dhcp" ] || errormsg "UCI config file /etc/config/dhcp is missing."
 reset_cb
 config_load ip6neigh
-config_get LAN_IFACE config interface lan
+config_get LAN_IFACE config lan_iface lan
 config_get DOMAIN config domain
 config_get ROUTER_NAME config router_name Router
 config_get LL_LABEL config ll_label LL
