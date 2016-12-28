@@ -11,7 +11,7 @@
 ##################################################################################
 
 
-#	Script to displays ip6neigh host file with columnar formatting (via awk)
+#	Script to display ip6neigh host file with columnar formatting (via awk)
 #	Script is called by luci-app-command for a web interface, or can be run directly
 #
 #	by André Lange	& Craig Miller	Dec 2016

@@ -62,9 +62,63 @@ manually with
 	```
 7. Use names instead of addresses for connecting to IPv6 hosts in your network.
 
+## Accessing the Host file from the Web (luci) 
+It is possible to see the host file via the luci web interface by using luci-app-commands package. 
+
+1. Install by:
+
+	```
+	opkg update
+	opkg install luci-app-commands
+
+	```
+
+2. Once installed, add the following to /etc/config/luci
+
+	```
+	#ip6neigh commands
+	config command
+        	option name 'IPv6 Neighbors'
+        	option command '/root/ip6neigh_host_show.sh'
+
+	config command
+        	option name 'ip6neigh log'
+        	option command 'cat /tmp/log/ip6neigh.log'
+
+	```
+3. Create script `/root/ip6neigh_host_show.sh` . .
+
+    Script code is at: [ip6neigh_host_show.sh](https://github.com/AndreBL/ip6neigh/blob/master/ip6neigh_host_show.sh)
+	
+	Make it executable with:
+	
+	```
+	chmod +x /root/ip6neigh_host_show.sh
+	```
+
+
+4. Now log into the luci web interface:
+![Figure 1](art/openwrt_login_router.lan.png?raw=true)
+
+5. And Navigate to System->Custom Commands. Clicking on **Run** will display the host file:
+![Figure 2](art/ip6neigh_host_show_web.png?raw=true)
+
+
+## Installing MAC OUI lookup feature
+`ip6neigh_mon.sh` can use an offline MAC address OUI lookup, if the file `oui.gz` is present.This makes names more readable for clients which do not send their hostname (e.g. the Chromebook) when making a DHCPv4 reqeust.
+
+To install, copy the `oui.gz` file to the router root directory:
+
+```
+scp oui.gz root@192.168.1.1:/root/
+```
+
+Hosts which do not send their hostname (e.g. Unknown-9BA.LL.lan) will now have a OUI manufacterer as part of the name, such as Speed-9BA.LL.lan (Speed is a Speed Dragon Multimedia Limited MAC device)
+
 ## Troubleshooting
 
 `ip6neigh_mon` should start up after step 6 above. You can check that it is running by typing
+
 ```
 # ps | grep ip6negh
  3718 root      1356 S    grep ip6neigh
