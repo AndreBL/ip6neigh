@@ -112,7 +112,7 @@ fe80::5048:e4ff:fe4d:a27d alarm.LL.lan
 
 ## Contributors
 
-The script is written by André L. Suggestions, and additions are welcome.
+The script is written by André Lange. Suggestions, and additions are welcome. Acknowledgements to Craig Miller for debugging and documentation. 
 
 ## License
 

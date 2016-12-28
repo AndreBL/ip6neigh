@@ -21,12 +21,22 @@
 . /lib/functions/network.sh
 
 #Program definitions
+readonly CONFIG_FILE="/etc/config/ip6neigh"
 readonly HOSTS_FILE="/tmp/hosts/ip6neigh"
 readonly CACHE_FILE="/tmp/ip6neigh.cache"
 readonly OUI_FILE="/root/oui.gz"
 readonly TEMP_FILE="/tmp/ip6neigh.tmp"
 
+#Writes error message and terminates the program.
+errormsg() {
+	local msg="Error: $1"
+	>&2 echo "$msg"
+	logger -t ip6neigh "$msg"
+	exit 1
+}
+
 #Loads UCI configuration file
+[ -f "$CONFIG_FILE" ] || errormsg "UCI config file $CONFIG_FILE is missing. A template is avaliable at https://github.com/AndreBL/ip6neigh ."
 reset_cb
 config_load ip6neigh
 config_get LAN_IFACE config interface lan
@@ -46,6 +56,7 @@ config_get LOG config log 0
 network_get_physdev LAN_DEV "$LAN_IFACE"
 
 #DNS suffix to append
+[ -f "/etc/config/dhcp" ] || errormsg "UCI config file /etc/config/dhcp is missing."
 DOMAIN=$(uci get dhcp.@dnsmasq[0].domain)
 if [ -z "$DOMAIN" ]; then DOMAIN="lan"; fi
 
@@ -57,7 +68,6 @@ add() {
 	killall -1 dnsmasq
 
 	logmsg "Added host: $name $addr"
-	
 	return 0
 }
 
@@ -82,6 +92,7 @@ add_cache() {
 	#Write the name to the cache file.
 	logmsg "Creating type $type cache entry for $mac: ${name}"
 	echo "${mac} ${type} ${name}" >> "$CACHE_FILE"
+	return 0
 }
 
 #Removes entry from the cache file if has a dynamic type.
@@ -105,7 +116,7 @@ rename() {
 	sed "s/ ${oldname}/ ${newname}/g" "$HOSTS_FILE" > "$TEMP_FILE"
 	mv "$TEMP_FILE" "$HOSTS_FILE"
 	
-	#Deletes the old cached entry.
+	#Deletes the old cached entry if dynamic.
 	grep -v "0 ${oldname}$" "$CACHE_FILE" > "$TEMP_FILE"
 	mv "$TEMP_FILE" "$CACHE_FILE"
 
@@ -141,7 +152,7 @@ is_other_static() {
 	#Gets the interface identifier from the address
 	iid=$(echo "$addr" | grep -o -m 1 -E "[^:]{1,4}:[^:]{1,4}:[^:]{1,4}:[^:]{1,4}$")
 	
-	#Aborts with false if could not get IID
+	#Aborts with false if could not get IID.
 	[ -n "$iid" ] || return 1
 	
 	#Builds match string
@@ -178,7 +189,7 @@ add_probe() {
 	grep -q "^$addr " /tmp/hosts/* && return 0
 	
 	#Adds to the list
-	probe_list="${probe_list}${addr} "
+	probe_list="${probe_list} ${addr}"
 	
 	return 0
 }
@@ -228,6 +239,9 @@ probe_addresses() {
 	
 	#Exit if there is nothing to probe.
 	[ -n "$probe_list" ] || return 0
+	
+	#Removes leading space from the list
+	probe_list="${probe_list:1}"
 	
 	logmsg "Probing other possible addresses for ${name}: ${probe_list}"
 	
@@ -286,12 +300,13 @@ oui_name() {
 	#Fails if OUI file does not exist.
 	[ -f "$OUI_FILE" ] || return 1
 	
+	#Get MAC and separates OUI part.
 	local mac="$2"
 	local oui="${mac:0:6}"
 	
 	#Check if the MAC is locally administered.
 	if [ "$((0x${oui:0:2} & 0x02))" != 0 ]; then
-		#Returns this name and success.
+		#Returns LocAdmin as name and success.
 		eval "$1='LocAdmin'"
 		return 0
 	fi
@@ -340,7 +355,7 @@ manuf_name() {
 		code=$(echo "${mac}${code}" | tr -d ':' | md5sum)
 		mname="${manuf}-${code:29:3}"
 		code=$(($code+1))
-		logmsg "Name conflict for ${mac}. Trying ${mname}."
+		logmsg "Name conflict for ${mac}. Trying ${mname}"
 	done
 	
 	#Writes entry to the cache with type 10.
@@ -382,11 +397,11 @@ create_name() {
 
 	#Generates name from manufacturer if allowed in this call.
 	if [ "$MANUF_NAMES" -gt 0 ] && [ "$acceptmanuf" -gt 0 ]; then
-			#Get manufacturer name.
-			if manuf_name cname "$mac"; then
-				eval "$1='$cname'"
-				return 0
-			fi
+		#Get manufacturer name.
+		if manuf_name cname "$mac"; then
+			eval "$1='$cname'"
+			return 0
+		fi
 	fi
 	
 	#Returns fail
@@ -551,6 +566,7 @@ process() {
 			probe_addresses "$name" "$addr" "$mac" "$scope"
 		;;
 	esac
+	
 	return 0
 }
 
@@ -681,28 +697,27 @@ if [ -n "$TMP_LABEL" ]; then TMP_LABEL=".${TMP_LABEL}" ; fi
 #Clears the output hosts file
 > "$HOSTS_FILE"
 
-#Process /etc/config/dhcp
+#Process /etc/config/dhcp and adds static hosts.
 echo "#Predefined SLAAC addresses" >> "$HOSTS_FILE"
 config_load dhcp
 config_foreach config_host host
 echo -e >> "$HOSTS_FILE"
-	
+
+#Header for dynamic hosts
 echo "#Discovered IPv6 neighbors" >> "$HOSTS_FILE"
 
 #Send signal to dnsmasq to reload hosts files.
 killall -1 dnsmasq
 
-#Flushes the neighbors cache and pings "all nodes" multicast address with various source addresses to speedup discovery.
+#Flushes the neighbors cache and pings "all nodes" multicast address with source addresses from various scopes to speedup discovery.
 ip -6 neigh flush dev "$LAN_DEV"
-
 ping6 -q -W 1 -c 3 -s 0 -I "$LAN_DEV" ff02::1 >/dev/null 2>/dev/null
 [ -n "$ula_address" ] && ping6 -q -W 1 -c 3 -s 0 -I "$ula_address" ff02::1 >/dev/null 2>/dev/null
 [ -n "$gua_address" ] && ping6 -q -W 1 -c 3 -s 0 -I "$gua_address" ff02::1 >/dev/null 2>/dev/null
 
-#Infinite loop. Keeps monitoring changes in IPv6 neighbor's reachability status and call process() routine.
+#Infinite main loop. Keeps monitoring changes in IPv6 neighbor's reachability status and call process() routine.
 ip -6 monitor neigh dev "$LAN_DEV" |
 	while IFS= read -r line
 	do
 		process $line
 	done
-
