@@ -2,11 +2,22 @@
 
 START=96
 
+readonly SCRIPT_FILE="/root/ip6neigh_mon.sh"
+
+errormsg() {
+	local msg="Error: $1"
+	>&2 echo "$msg"
+	logger -t ip6neigh "$msg"
+	exit 1
+}
+
 start() {
 	pgrep -f ip6neigh_mon.sh && return 0
+	
+	[ -f "$SCRIPT_FILE" ] || errormsg "The main script file $SCRIPT_FILE is missing."
 
 	SERVICE_DAEMONIZE=1
-	service_start /root/ip6neigh_mon.sh -s
+	service_start "$SCRIPT_FILE" -s
 
 	return 0
 }
