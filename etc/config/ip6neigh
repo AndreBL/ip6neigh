@@ -4,32 +4,41 @@ config ip6neigh 'config'
 
 	# Logical interface name. Default: 'lan'
 	# option interface	'lan'
+	
+	# Top-level domain name for local hosts. Will load the option domain from
+	# /etc/config/dhcp if not specified here. Default: 'lan'
+	#option domain		'lan'
+	
+	# Name to be given to the router's IPv6 addresses. Corresponding labels will
+	# be appended for each scope of address. Use '0' if you want to disable this
+	# feature. Default: 'Router'
+	#option router_name		'Router'
 
 	# When a new neighbor is discovered, auto probe for other addresses based
 	# on MAC.
 	# 0=disabled, 1=all scopes, 2=same scope. Default: '1'
-	#option probe_eui64	'1'
+	#option probe_eui64		'1'
 
 	# When a new neighbor is discovered, auto probe for other addresses with
 	# the same interface identifier. 
 	# 0=disabled, 1=enabled. Default: '1'
-	#option probe_iid	'1'
+	#option probe_iid		'1'
 
 	# Label for link-local addresses. Default: 'LL'
-	#option ll_label	'LL'
+	#option ll_label		'LL'
 
 	# Label for unique local addresses (ULA). Default is no label for ULAs.
-	#option ula_label	'ULA'
+	#option ula_label		'ULA'
 
 	# Label for globally unique addresses (GUA).
 	# Defaults to 'PUB' if network has ULA prefix and no label if network
 	# network does not have ULA prefix.
-	#option gua_label	'PUB'
+	#option gua_label		'PUB'
 
 	# Secondary label for temporary (RFC 4941) address. Will also be applied
 	# to addresses with Semantically Opaque Interface Identifiers (RFC 7217).
 	# Default: 'TMP'
-	#option tmp_label	'TMP'
+	#option tmp_label		'TMP'
 
 	# Get names from DHCPv6 leases. 0=disabled, 1=enabled.
 	# Default: '1'
@@ -42,11 +51,11 @@ config ip6neigh 'config'
 	# Generate names based on the manufacturer of the device if DHCPv6/v4 names
 	# were not available. 0=disabled, 1=enabled.
 	# Default: '1'
-	#option manuf_names	'1'
+	#option manuf_names		'1'
 
 	# Enable loading of predefined static or MAC-based IIDs from /etc/config/dhcp.
 	# 0=disabled, 1=enabled. Default: '1'
-	#option load_static	'1'
+	#option load_static		'1'
 
 	# Enable logging of debug messages. Options are '0' for disabled,
 	# '1' to use syslog or the file name if you want to log to a file instead.

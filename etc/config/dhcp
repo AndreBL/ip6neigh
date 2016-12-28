@@ -32,13 +32,3 @@ config host
 	#Copy the interface identifier from the link-local address of
 	#of the device.
 	option slaac	'daa1:4554:747b:1f50'
-
-
-# Adding local DNS names to the router itself:
-config host
-	option name		'Router'
-	#Copy the MAC address of the LAN interface of your router.
-	option mac		'e6:9e:b4:fd:e4:70'
-	option slaac	'1'
-	option ula_iid	':1'
-	option gua_iid	':1'

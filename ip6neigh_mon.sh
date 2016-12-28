@@ -37,9 +37,12 @@ errormsg() {
 
 #Loads UCI configuration file
 [ -f "$CONFIG_FILE" ] || errormsg "UCI config file $CONFIG_FILE is missing. A template is avaliable at https://github.com/AndreBL/ip6neigh ."
+[ -f "/etc/config/dhcp" ] || errormsg "UCI config file /etc/config/dhcp is missing."
 reset_cb
 config_load ip6neigh
 config_get LAN_IFACE config interface lan
+config_get DOMAIN config domain
+config_get ROUTER_NAME config router_name Router
 config_get LL_LABEL config ll_label LL
 config_get ULA_label config ula_label
 config_get gua_label config gua_label
@@ -54,10 +57,12 @@ config_get LOG config log 0
 
 #Gets the physical device
 network_get_physdev LAN_DEV "$LAN_IFACE"
+[ -n "$LAN_DEV" ] || errormsg "Could not get the name of the physical device for network interface ${LAN_IFACE}."
 
-#DNS suffix to append
-[ -f "/etc/config/dhcp" ] || errormsg "UCI config file /etc/config/dhcp is missing."
-DOMAIN=$(uci get dhcp.@dnsmasq[0].domain)
+#Gets DNS domain from /etc/config/dhcp if not defined in ip6neigh config. Defaults to 'lan'.
+if [ -z "$DOMAIN" ]; then
+	DOMAIN=$(uci get dhcp.@dnsmasq[0].domain 2>/dev/null)
+fi
 if [ -z "$DOMAIN" ]; then DOMAIN="lan"; fi
 
 #Adds entry to hosts file
@@ -344,7 +349,7 @@ manuf_name() {
 	local count=0
 	local code
 	while grep -q " ${mname}$" "$CACHE_FILE" ; do
-		#Prevent infinite loop.
+		#Prevents infinite loop.
 		if [ "$code" -ge 10 ]; then
 			logmsg "Too many name conflicts for ${mname}. Giving up."
 			return 2
@@ -354,7 +359,7 @@ manuf_name() {
 		code=$(printf %x $count)
 		code=$(echo "${mac}${code}" | tr -d ':' | md5sum)
 		mname="${manuf}-${code:29:3}"
-		code=$(($code+1))
+		true $(( code++ ))
 		logmsg "Name conflict for ${mac}. Trying ${mname}"
 	done
 	
@@ -570,6 +575,31 @@ process() {
 	return 0
 }
 
+#Adds static entry to hosts file
+add_static() {
+	local name="$1"
+	local addr="$2"
+	local scope="$3"
+	local suffix=""
+
+	#Decides which suffix should be added to the name.
+	case "$scope" in
+		#Link-local
+		0) if [ -n "${LL_LABEL}" ]; then suffix="${LL_LABEL}.${DOMAIN}"; fi;;
+
+		#ULA
+		1) if [ -n "${ULA_LABEL}" ]; then suffix="${ULA_LABEL}.${DOMAIN}"; fi;;
+		
+		#GUA
+		2) if [ -n "${GUA_LABEL}" ]; then suffix="${GUA_LABEL}.${DOMAIN}"; fi;;
+	esac
+	
+	#Writes the entry to the file
+	echo "${addr} ${name}${suffix}" >> "$HOSTS_FILE"
+	
+	return 0
+}
+
 #Process entry in /etc/config/dhcp
 config_host() {
 	local name
@@ -631,23 +661,14 @@ config_host() {
 	logmsg "Generating predefined SLAAC addresses for $name"
 
 	#Creates hosts file entries with link-local, ULA and GUA prefixes with corresponding IIDs.
-	local suffix
-	suffix=""
 	if [ -n "$ll_iid" ] && [ "$ll_iid" != "0" ]; then
-		if [ -n "${LL_LABEL}" ]; then suffix="${LL_LABEL}.${DOMAIN}"; fi
-		echo "fe80::${ll_iid} ${name}${suffix}" >> "$HOSTS_FILE"
+		add_static "$name" "fe80::${ll_iid}" 0
 	fi
-	
-	suffix=""
 	if [ -n "$ula_prefix" ] && [ -n "$ula_iid" ] && [ "$ula_iid" != "0" ]; then
-		if [ -n "${ULA_LABEL}" ]; then suffix="${ULA_LABEL}.${DOMAIN}"; fi
-		echo "${ula_prefix}:${ula_iid} ${name}${suffix}" >> "$HOSTS_FILE"
+		add_static "$name" "${ula_prefix}:${ula_iid}" 1
 	fi
-	
-	suffix=""
 	if [ -n "$gua_prefix" ] && [ -n "$gua_iid" ] && [ "$gua_iid" != "0" ]; then
-		if [ -n "${GUA_LABEL}" ]; then suffix="${GUA_LABEL}.${DOMAIN}"; fi
-		echo "${gua_prefix}:${gua_iid} ${name}${suffix}" >> "$HOSTS_FILE"
+		add_static "$name" "${gua_prefix}:${gua_iid}" 2
 	fi
 }
 
@@ -659,11 +680,15 @@ fi
 #Startup message
 logmsg "Starting ip6neigh script for physdev $LAN_DEV with domain $DOMAIN"
 
-#Finds ULA and global addresses on LAN interface.
+#Gets the IPv6 addresses from the LAN device.
+ll_cidr=$(ip -6 addr show "$LAN_DEV" scope link 2>/dev/null | grep -m 1 "inet6" | awk '{print $2}')
 ula_cidr=$(ip -6 addr show "$LAN_DEV" scope global 2>/dev/null | grep "inet6 fd" | grep -m 1 -v "dynamic" | awk '{print $2}')
-gua_cidr=$(ip -6 addr show "$LAN_DEV" scope global dynamic 2>/dev/null | grep -m 1 -E "inet6 ([^fd])" | awk '{print $2}')
+gua_cidr=$(ip -6 addr show "$LAN_DEV" scope global dynamic 2>/dev/null | grep "inet6 [^fd]" | grep -m 1 -v "temporary" | awk '{print $2}')
+ll_address=$(echo "$ll_cidr" | cut -d "/" -f1)
 ula_address=$(echo "$ula_cidr" | cut -d "/" -f1)
 gua_address=$(echo "$gua_cidr" | cut -d "/" -f1)
+
+#Gets the network prefixes assuming /64 subnets.
 ula_prefix=$(echo "$ula_address" | cut -d ":" -f1-4)
 gua_prefix=$(echo "$gua_address" | cut -d ":" -f1-4)
 
@@ -697,8 +722,18 @@ if [ -n "$TMP_LABEL" ]; then TMP_LABEL=".${TMP_LABEL}" ; fi
 #Clears the output hosts file
 > "$HOSTS_FILE"
 
-#Process /etc/config/dhcp and adds static hosts.
+#Header for static hosts
 echo "#Predefined SLAAC addresses" >> "$HOSTS_FILE"
+
+#Adds the router names
+if [ -n "$ROUTER_NAME" ] && [ "$ROUTER_NAME" != "0" ]; then
+	logmsg "Generating names for the router's addresses"
+	[ -n "$ll_address" ] && add_static "$ROUTER_NAME" "$ll_address" 0
+	[ -n "$ula_address" ] && add_static "$ROUTER_NAME" "$ula_address" 1
+	[ -n "$gua_address" ] && add_static "$ROUTER_NAME" "$gua_address" 2
+fi
+
+#Process /etc/config/dhcp and adds static hosts.
 config_load dhcp
 config_foreach config_host host
 echo -e >> "$HOSTS_FILE"
