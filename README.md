@@ -109,10 +109,25 @@ It is possible to see the host file via the luci web interface by using luci-app
 ## Installing MAC OUI lookup feature
 `ip6neigh_mon.sh` can use an offline MAC address OUI lookup, if the file `oui.gz` is present.This makes names more readable for clients which do not send their hostname (e.g. the Chromebook) when making a DHCPv4 reqeust.
 
-To install, copy the `oui.gz` file to the router root directory:
+To install, copy the `oui.gz` file to the router root directory by running `ip6neigh_oui_download.sh` tool
+
 
 ```
-scp oui.gz root@192.168.1.1:/root/
+cd /root
+#./ip6neigh_oui_download.sh 
+Downloading file...
+Connecting to linuxnet.ca (24.222.55.20:80)
+oui-raw.txt          100% |********************************************|   432k  0:00:00 ETA
+
+Filtering database...
+
+Compressing database...
+
+Moving the file...
+
+The new compressed OUI database file is at: /root/oui.gz
+# 
+
 ```
 
 Hosts which do not send their hostname (e.g. Unknown-9BA.LL.lan) will now have a OUI manufacterer as part of the name, such as Speed-9BA.LL.lan (Speed is a Speed Dragon Multimedia Limited MAC device)
