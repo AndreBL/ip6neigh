@@ -98,9 +98,11 @@ It is possible to see the host file via the luci web interface by using luci-app
 
 
 4. Now log into the luci web interface:
+
 ![Figure 1](art/openwrt_login_router.lan.png?raw=true)
 
 5. And Navigate to System->Custom Commands. Clicking on **Run** will display the host file:
+
 ![Figure 2](art/ip6neigh_host_show_web.png?raw=true)
 
 
