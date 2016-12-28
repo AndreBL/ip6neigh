@@ -683,7 +683,7 @@ logmsg "Starting ip6neigh script for physdev $LAN_DEV with domain $DOMAIN"
 #Gets the IPv6 addresses from the LAN device.
 ll_cidr=$(ip -6 addr show "$LAN_DEV" scope link 2>/dev/null | grep -m 1 "inet6" | awk '{print $2}')
 ula_cidr=$(ip -6 addr show "$LAN_DEV" scope global 2>/dev/null | grep "inet6 fd" | grep -m 1 -v "dynamic" | awk '{print $2}')
-gua_cidr=$(ip -6 addr show "$LAN_DEV" scope global dynamic 2>/dev/null | grep "inet6 [^fd]" | grep -m 1 -v "temporary" | awk '{print $2}')
+gua_cidr=$(ip -6 addr show "$LAN_DEV" scope global noprefixroute 2>/dev/null | grep -m 1 "inet6 [^fd]" | awk '{print $2}')
 ll_address=$(echo "$ll_cidr" | cut -d "/" -f1)
 ula_address=$(echo "$ula_cidr" | cut -d "/" -f1)
 gua_address=$(echo "$gua_cidr" | cut -d "/" -f1)
