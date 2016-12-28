@@ -1,8 +1,22 @@
 #!/bin/sh
 
-# Auxiliary script for feeding public IPv6 addresses with dynamic prefix
-# to update with OpenWrt DDNS Scripts. Usage example:
-# ip6neigh_ddns.sh Server1.PUB.lan 
+##################################################################################
+#
+#  Copyright (C) 2016 André Lange
+#
+#  See the file "LICENSE" for information on usage and redistribution
+#  of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#  Distributed under GPLv2 License
+#
+##################################################################################
+
+
+#	Script for feeding public IPv6 addresses with dynamic prefix to update with
+#	OpenWrt DDNS Scripts. Usage example:
+#
+#	ip6neigh_ddns.sh Server1.PUB.lan 
+#
+#	by André Lange	Dec 2016
 
 name="$1"
 [ -n "$name" ] || exit 1
