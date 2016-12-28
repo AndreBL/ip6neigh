@@ -166,20 +166,36 @@ Tue Dec 27 01:32:20 UTC 2016 Probing other possible addresses for hau: fe80::d69
 To list the hostnames detected by **ip6neigh**.
 
 ```
-# cat /tmp/hosts/ip6neigh 
-#Predefined SLAAC addresses
-
-#Discovered IPv6 neighbors
-fe80::d69a:20ff:fe01:e0a4 hau.LL.lan
-fe80::d69a:20ff:fe01:e0a4 hau.LL.lan
-fe80::5048:e4ff:fe4d:a27d alarm.LL.lan
-fe80::5048:e4ff:fe4d:a27d alarm.LL.lan
-2001:470:ebbd:4:e5c6:4e4b:bc3b:df3 alarm.TMP.lan
-2001:470:ebbd:4:d69a:20ff:fe01:e0a4 hau.lan
+# /root/ip6neigh_host_show.sh
+#Predefined                              SLAAC addresses
+fe80::224:a5ff:fed7:3088                 Router.LL.lan 
+2001:470:ebbd:4::1                       Router 
+                                          
+#Discovered                              IPv6 neighbors
+fe80::d69a:20ff:fe01:e0a4                hau.LL.lan 
+2001:470:ebbd:4:20ca:43:4559:9da4        hau.TMP.lan 
+fe80::5048:e4ff:fe4d:a27d                alarm.LL.lan 
+2001:470:ebbd:4:d69a:20ff:fe01:e0a4      hau 
+2001:470:ebbd:4:5048:e4ff:fe4d:a27d      alarm 
+# 
 ```
-   
 
-   
+## Dependencies
+
+One only needs to install `ip` package. It has been tested on Chaos Calmer (v15.05.1) of OpenWRT. 
+
+In order to use the luci web interface, one must install `luci-app-commands`   
+
+## More Details
+
+ip6neigh is designed to operate in a dual-stack network with both IPv4 and IPv6 running. It will collect host names and return them when queried by DNS.
+
+ip6neigh relies on DHCPv4 client to report its hostname (option 12). If the client does not report the hostname, then an "Unknown-xxx" name will be applied. If the offline MAC OUI lookup has been activated (by running the script  ip6neigh_oui_download.sh), then the MAC OUI will be used instead of Unknown.
+
+
+### Assumptions
+
+ip6neigh_mon.sh assumes that IPv6 subnets are /64 (which is what hosts should see in an IPv6 network for SLAAC to work). It also assumes DHCPv4 and SLAAC environments.
 
 ## Contributors
 
