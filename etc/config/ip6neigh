@@ -2,8 +2,11 @@
 
 config ip6neigh 'config'
 
-	# Logical interface name. Default: 'lan'
-	# option interface	'lan'
+	# LAN interface logical name. Default: 'lan'
+	#option lan_iface		'lan'
+	
+	# IPv6 WAN interface logical name. Default: 'wan6'
+	#option wan_iface		'wan6'
 	
 	# Top-level domain name for local hosts. Will load the option domain from
 	# /etc/config/dhcp if not specified here. Default: 'lan'
