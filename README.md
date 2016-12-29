@@ -193,7 +193,15 @@ In order to use the LuCI web interface, one must install `luci-app-commands`
 
 ip6neigh is designed to operate in a dual-stack network with both IPv4 and IPv6 running. It will collect host names and return them when queried by DNS.
 
-ip6neigh relies on DHCPv4 client to report its hostname (option 12). If the client does not report the hostname, then an "Unknown-xxx" name will be applied with *xxx* as the last three bytes of the MAC address. If the offline MAC OUI lookup has been activated (by running the script  ip6neigh_oui_download.sh), then the MAC OUI manufacturer name will be used instead of Unknown.
+ip6neigh relies on DHCPv4/client to report its hostname (option 12) or DHCPv6 Client Option . If the client does not report the hostname, then an "Unknown-xxx" name will be applied with *xxx* as the last three bytes of the MAC address. If the offline MAC OUI lookup has been activated (by running the script  ip6neigh_oui_download.sh), then the MAC OUI manufacturer name will be used instead of Unknown.
+
+Names will be discovered in the following order (and priority):
+
+1. Static hosts in /etc/config/dhcp
+2. DHCPv6 leases
+3. DHCPv4 leases
+4. OUI manufacurer-xxx
+5. simple Unknown-xxx names.
 
 
 ### Assumptions
