@@ -3,7 +3,7 @@
 
 ## Synopsis
 
-The purpose of the script is to automatically generate and update IPv6 DNS host names on the OpenWRT router, making access to devices by name (either IPv4 or IPv6) on your network a snap. It does this by creating a hosts file giving local DNS names to IPv6 addresses that IPv6 enabled devices took via SLAAC mechanism.
+The purpose of the script is to automatically generate and update IPv6 DNS host names on the OpenWrt router, making access to devices by name (either IPv4 or IPv6) on your network a snap. It does this by creating a hosts file giving local DNS names to IPv6 addresses that IPv6 enabled devices took via SLAAC mechanism.
 
 Rather than using clunky IP addresses (v4 or v6), devices on your network now become:
 * router.lan
@@ -65,8 +65,8 @@ manually with
 	```
 7. Use names instead of addresses for connecting to IPv6 hosts in your network.
 
-## Accessing the Host file from the Web (luci) 
-It is possible to see the host file via the luci web interface by using luci-app-commands package. 
+## Accessing the Host file from the Web (LuCI) 
+It is possible to see the host file via the LuCI web interface by using luci-app-commands package. 
 
 1. Install by:
 
@@ -89,7 +89,7 @@ It is possible to see the host file via the luci web interface by using luci-app
         	option command 'cat /tmp/log/ip6neigh.log'
 
 	```
-3. Create script `/root/ip6neigh_host_show.sh` . .
+3. Create script `/root/ip6neigh_host_show.sh` .
 
     Script code is at: [ip6neigh_host_show.sh](https://github.com/AndreBL/ip6neigh/blob/master/more/ip6neigh_host_show.sh)
 	
@@ -100,7 +100,7 @@ It is possible to see the host file via the luci web interface by using luci-app
 	```
 
 
-4. Now log into the luci web interface:
+4. Now log into the LuCI web interface:
 
 ![Figure 1](art/openwrt_login_router.lan.png?raw=true)
 
@@ -110,9 +110,9 @@ It is possible to see the host file via the luci web interface by using luci-app
 
 
 ## Installing MAC OUI lookup feature
-`ip6neigh_mon.sh` can use an offline MAC address OUI lookup, if the file `oui.gz` is present.This makes names more readable for clients which do not send their hostname (e.g. the Chromebook) when making a DHCPv4 reqeust.
+`ip6neigh_mon.sh` can use an offline MAC address OUI lookup, if the file `oui.gz` is present. This makes names more readable for clients which do not send their hostname (e.g. the Chromebook) when making a DHCP request.
 
-To install, copy the `oui.gz` file to the router root directory by running `ip6neigh_oui_download.sh` tool
+To install, copy the `oui.gz` file to the router root directory by running `ip6neigh_oui_download.sh` tool:
 
 
 ```
@@ -133,7 +133,7 @@ The new compressed OUI database file is at: /root/oui.gz
 
 ```
 
-Hosts which do not send their hostname (e.g. Unknown-9BA.LL.lan) will now have a OUI manufacterer as part of the name, such as Speed-9BA.LL.lan (Speed is a Speed Dragon Multimedia Limited MAC device)
+Hosts which do not send their hostname (e.g. Unknown-9BA.LL.lan) will now have an OUI manufacterer as part of the name, such as Speed-9BA.LL.lan (Speed is a Speed Dragon Multimedia Limited MAC device).
 
 ## Troubleshooting
 
@@ -147,7 +147,7 @@ Hosts which do not send their hostname (e.g. Unknown-9BA.LL.lan) will now have a
 # 
 ```
 
-You can also check the long file (enabled/disabled in `/etc/config/ip6negh`)
+You can also check the log file (enabled/disabled in `/etc/config/ip6negh`)
 
 ```
 # cat /tmp/log/ip6neigh.log
@@ -185,9 +185,9 @@ fe80::5048:e4ff:fe4d:a27d                alarm.LL.lan
 
 ## Dependencies
 
-One only needs to install `ip` package. It has been tested on Chaos Calmer (v15.05.1) of OpenWRT. 
+One only needs to install `ip` package. It has been tested on Chaos Calmer (v15.05.1) of OpenWrt. 
 
-In order to use the luci web interface, one must install `luci-app-commands`   
+In order to use the LuCI web interface, one must install `luci-app-commands`   
 
 ## More Details
 
