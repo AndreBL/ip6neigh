@@ -3,8 +3,11 @@
 
 ## Synopsis
 
-The purpose of the script is to automatically generate and update a hosts file giving local DNS names to IPv6 addresses that IPv6 enabled devices took via SLAAC mechanism.
+The purpose of the script is to automatically generate and update IPv6 DNS host names on the OpenWRT router, making access to devices by name (either IPv4 or IPv6) on your network a snap. It does this by creating a hosts file giving local DNS names to IPv6 addresses that IPv6 enabled devices took via SLAAC mechanism.
 
+Rather than using clunky IP addresses (v4 or v6), devices on your network now become:
+* router.lan
+* mycomputer.lan
 
 ## Motivation
 
@@ -12,7 +15,7 @@ IPv6 addresses are difficult to remember. DNS provides an abstraction layer, so 
 
 1. When you need to trace some network activity through tcpdump or Realtime Connections page on LuCI and there are lots of IPv6 addresses there and you don't know who/what they belong to.
 
-2. When you are accessing your LAN hosts remotely through VPN. Even if the local and remote IPv4 subnets conflicts you can still use IPv6 ULA addresses to connect to your services. This task becomes much easier if ULAs have names.
+2. When you are accessing your LAN hosts either locally or remotely through VPN. Even if the local and remote IPv4 subnets conflicts you can still use IPv6 ULA addresses (e.g FDxx:xxxx:...) to connect to your services. DNS names make this *much* easier.
 
 ## Installation
 
@@ -88,7 +91,7 @@ It is possible to see the host file via the luci web interface by using luci-app
 	```
 3. Create script `/root/ip6neigh_host_show.sh` . .
 
-    Script code is at: [ip6neigh_host_show.sh](https://github.com/AndreBL/ip6neigh/blob/master/ip6neigh_host_show.sh)
+    Script code is at: [ip6neigh_host_show.sh](https://github.com/AndreBL/ip6neigh/blob/master/more/ip6neigh_host_show.sh)
 	
 	Make it executable with:
 	
@@ -190,7 +193,7 @@ In order to use the luci web interface, one must install `luci-app-commands`
 
 ip6neigh is designed to operate in a dual-stack network with both IPv4 and IPv6 running. It will collect host names and return them when queried by DNS.
 
-ip6neigh relies on DHCPv4 client to report its hostname (option 12). If the client does not report the hostname, then an "Unknown-xxx" name will be applied. If the offline MAC OUI lookup has been activated (by running the script  ip6neigh_oui_download.sh), then the MAC OUI will be used instead of Unknown.
+ip6neigh relies on DHCPv4 client to report its hostname (option 12). If the client does not report the hostname, then an "Unknown-xxx" name will be applied with *xxx* as the last three bytes of the MAC address. If the offline MAC OUI lookup has been activated (by running the script  ip6neigh_oui_download.sh), then the MAC OUI manufacturer name will be used instead of Unknown.
 
 
 ### Assumptions
