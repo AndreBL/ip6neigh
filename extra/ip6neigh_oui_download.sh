@@ -20,7 +20,7 @@ echo "Downloading Nmap MAC prefixes..."
 wget -O '/tmp/oui-raw.txt' 'http://linuxnet.ca/ieee/oui/nmap-mac-prefixes' || exit 1
 
 echo -e "\nApplying filters..."
-cut -d ' ' -f1 /tmp/oui-raw.txt | sort -t$'\t' -k1 | sed 's/[^[0-9,a-z,A-Z]]*//g' > /tmp/oui-filt.txt
+cut -d ' ' -f1-2 /tmp/oui-raw.txt | grep "^[^#]" | sort -t' ' -k1 | sed 's/[^[0-9,a-z,A-Z]]*//g' > /tmp/oui-filt.txt
 rm /tmp/oui-raw.txt
 
 echo "Compressing database..."
