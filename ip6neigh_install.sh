@@ -150,7 +150,7 @@ install() {
 		echo -e "\nNot overwriting existing config file ${CONFIG_FILE}.\nThe downloaded example config file will be moved to ${confdest}."
 		mv /tmp/ip6neigh/config "$confdest" || errormsg "Failed to move the configuration file"
 	else
-		mv mv /tmp/ip6neigh/config "$CONFIG_FILE" || "Failed to move the configuration file"
+		mv /tmp/ip6neigh/config "$CONFIG_FILE" || "Failed to move the configuration file"
 	fi
 	
 	#Successful installation
