@@ -14,18 +14,20 @@
 #
 #	by André Lange	Dec 2016
 
-echo "Downloading file..."
+readonly INSTALL_DIR="/usr/lib/ip6neigh/"
+
+echo "Downloading Nmap MAC prefixes..."
 wget -O '/tmp/oui-raw.txt' 'http://linuxnet.ca/ieee/oui/nmap-mac-prefixes' || exit 1
 
-echo -e "\nFiltering database..."
+echo -e "\nApplying filters..."
 cut -d ' ' -f1 /tmp/oui-raw.txt | sort -t$'\t' -k1 | sed 's/[^[0-9,a-z,A-Z]]*//g' > /tmp/oui-filt.txt
 rm /tmp/oui-raw.txt
 
-echo -e "\nCompressing database..."
+echo "Compressing database..."
 mv /tmp/oui-filt.txt /tmp/oui
 gzip -f /tmp/oui || exit 2
 
-echo -e "\nMoving the file..."
-mv /tmp/oui.gz /root/ || exit 3
+echo "Moving the file..."
+mv /tmp/oui.gz "$INSTALL_DIR" || exit 3
 
-echo -e "\nThe new compressed OUI database file is at: /root/oui.gz"
+echo -e "\nThe new compressed OUI database file is at: ${INSTALL_DIR}oui.gz"

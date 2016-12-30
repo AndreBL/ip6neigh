@@ -19,14 +19,14 @@ IPv6 addresses are difficult to remember. DNS provides an abstraction layer, so 
 
 ## Installation
 
-1. Create script `/root/ip6neigh_mon.sh` . If you want to store it in a different place, you'll need to change the path in the init.d script.
+1. Create script `/usr/lib/ip6neigh/ip6neigh_mon.sh` . If you want to store it in a different place, you'll need to change the path in the init.d script.
 
-    Script code is at: [ip6neigh_mon.sh](https://github.com/AndreBL/ip6neigh/blob/master/ip6neigh_mon.sh)
+    Script code is at: [ip6neigh_mon.sh](https://github.com/AndreBL/ip6neigh/blob/master/main/ip6neigh_mon.sh)
 	
 	Make it executable with:
 	
 	```
-	chmod +x /root/ip6neigh_mon.sh
+	chmod +x /usr/lib/ip6neigh/ip6neigh_mon.sh
 	```
 2. Create initialization script `/etc/init.d/ip6neigh`
 
@@ -82,21 +82,21 @@ It is possible to see the host file via the LuCI web interface by using luci-app
 	#ip6neigh commands
 	config command
         	option name 'IPv6 Neighbors'
-        	option command '/root/ip6neigh_host_show.sh'
+        	option command '/usr/lib/ip6neigh/ip6neigh_host_show.sh'
 
 	config command
         	option name 'ip6neigh log'
         	option command 'cat /tmp/log/ip6neigh.log'
 
 	```
-3. Create script `/root/ip6neigh_host_show.sh` .
+3. Create script `/usr/lib/ip6neigh/ip6neigh_host_show.sh` .
 
-    Script code is at: [ip6neigh_host_show.sh](https://github.com/AndreBL/ip6neigh/blob/master/more/ip6neigh_host_show.sh)
+    Script code is at: [ip6neigh_host_show.sh](https://github.com/AndreBL/ip6neigh/blob/master/extra/ip6neigh_host_show.sh)
 	
 	Make it executable with:
 	
 	```
-	chmod +x /root/ip6neigh_host_show.sh
+	chmod +x /usr/lib/ip6neigh/ip6neigh_host_show.sh
 	```
 
 
@@ -112,11 +112,11 @@ It is possible to see the host file via the LuCI web interface by using luci-app
 ## Installing MAC OUI lookup feature
 `ip6neigh_mon.sh` can use an offline MAC address OUI lookup, if the file `oui.gz` is present. This makes names more readable for clients which do not send their hostname (e.g. the Chromebook) when making a DHCP request.
 
-To install, copy the `oui.gz` file to the router root directory by running `ip6neigh_oui_download.sh` tool:
+To install, copy the `oui.gz` file to the router /usr/lib/ip6neigh/ directory by running `ip6neigh_oui_download.sh` tool:
 
 
 ```
-cd /root
+cd /usr/lib/ip6neigh/
 #./ip6neigh_oui_download.sh 
 Downloading file...
 Connecting to linuxnet.ca (24.222.55.20:80)
@@ -128,7 +128,7 @@ Compressing database...
 
 Moving the file...
 
-The new compressed OUI database file is at: /root/oui.gz
+The new compressed OUI database file is at: /usr/lib/ip6neigh/oui.gz
 # 
 
 ```
@@ -142,8 +142,8 @@ Hosts which do not send their hostname (e.g. Unknown-9BA.LL.lan) will now have a
 ```
 # ps | grep ip6negh
  3718 root      1356 S    grep ip6neigh
-20882 root      1444 S    {ip6neigh_mon.sh} /bin/sh /root/ip6neigh_mon.sh -s
-20916 root      1448 S    {ip6neigh_mon.sh} /bin/sh /root/ip6neigh_mon.sh -s
+20882 root      1444 S    {ip6neigh_mon.sh} /bin/sh /usr/lib/ip6neigh/ip6neigh_mon.sh -s
+20916 root      1448 S    {ip6neigh_mon.sh} /bin/sh /usr/lib/ip6neigh/ip6neigh_mon.sh -s
 # 
 ```
 
@@ -169,7 +169,7 @@ Tue Dec 27 01:32:20 UTC 2016 Probing other possible addresses for hau: fe80::d69
 To list the hostnames detected by **ip6neigh**.
 
 ```
-# /root/ip6neigh_host_show.sh
+# /usr/lib/ip6neigh/ip6neigh_host_show.sh
 #Predefined                              SLAAC addresses
 fe80::224:a5ff:fed7:3088                 Router.LL.lan 
 2001:470:ebbd:4::1                       Router 

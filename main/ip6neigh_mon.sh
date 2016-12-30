@@ -24,7 +24,7 @@
 readonly CONFIG_FILE="/etc/config/ip6neigh"
 readonly HOSTS_FILE="/tmp/hosts/ip6neigh"
 readonly CACHE_FILE="/tmp/ip6neigh.cache"
-readonly OUI_FILE="/root/oui.gz"
+readonly OUI_FILE="/usr/lib/ip6neigh/oui.gz"
 readonly TEMP_FILE="/tmp/ip6neigh.tmp"
 
 #Writes error message and terminates the program.
