@@ -30,9 +30,9 @@ file /etc/init.d/ip6neigh etc/init.d/ip6neigh x
 file /etc/hotplug.d/iface/30-ip6neigh etc/hotplug.d/iface/30-ip6neigh x
 file /tmp/ip6neigh/config etc/config/ip6neigh
 
-file /usr/lib/ip6neigh/ip6neigh_oui_download.sh more/ip6neigh_oui_download.sh x
-file /usr/lib/ip6neigh/ip6neigh_host_show.sh more/ip6neigh_host_show.sh x
-file /usr/lib/ip6neigh/ip6neigh_ddns.sh more/ip6neigh_ddns.sh x
+file /usr/lib/ip6neigh/ip6neigh_oui_download.sh extra/ip6neigh_oui_download.sh x
+file /usr/lib/ip6neigh/ip6neigh_host_show.sh extra/ip6neigh_host_show.sh x
+file /usr/lib/ip6neigh/ip6neigh_ddns.sh extra/ip6neigh_ddns.sh x
 "
 
 #Success message
@@ -170,7 +170,7 @@ uninstall() {
 		echo -e
 	fi
 	
-	#Processes files first, then directories.
+	#Removes files
 	local flist=$(echo "$list" | grep "^file ")
 	local dlist=$(echo "$list" | grep "^dir ")
 	local line
@@ -180,6 +180,11 @@ uninstall() {
 		IFS=' '
 		[ -n "$line" ] && uninstall_line $line
 	done
+	
+	#Remove OUI file
+	uninstall_line file "${INSTALL_DIR}oui.gz"
+	
+	#Removes directories
 	echo -e
 	IFS=$'\n'
 	for line in $dlist;
@@ -187,9 +192,6 @@ uninstall() {
 		IFS=' '
 		[ -n "$line" ] && uninstall_line $line
 	done
-	
-	#Remove OUI file
-	uninstall_line "${INSTALL_DIR}oui.gz"
 	
 	[ -f "$CONFIG_FILE" ] && echo -e "\nThe config file $CONFIG_FILE was kept in place for future use. Please remove this file manually if you will not need it anymore."
 	
