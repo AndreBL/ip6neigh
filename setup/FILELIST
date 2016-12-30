@@ -1,2 +1,2 @@
 dir /usr/lib/ip6neigh/
-file /usr/lib/ip6neigh/ip6neigh_main.sh ip6neigh/ip6neigh_main.sh x
+file /usr/lib/ip6neigh/ip6neigh_main.sh main/ip6neigh_main.sh x
