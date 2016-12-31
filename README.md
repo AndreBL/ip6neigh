@@ -31,21 +31,21 @@ IPv6 addresses are difficult to remember. DNS provides an abstraction layer, so 
 2. Download the installer script script to /tmp on your router by running the following command:
 	
 	```
-	# curl -k -o /tmp/ip6neigh_install.sh https://raw.githubusercontent.com/AndreBL/ip6neigh/master/ip6neigh_install.sh
-	# chmod +x /tmp/ip6neigh_install.sh
+	# curl -k -o /tmp/ip6neigh_setup.sh https://raw.githubusercontent.com/AndreBL/ip6neigh/master/ip6neigh_setup.sh
+	# chmod +x /tmp/ip6neigh_setup.sh
 	#
 	```
 
-3. Change directory to /tmp, and run `ip6neigh_install.sh`
+3. Change directory to /tmp, and run `ip6neigh_setup.sh install`
 
 	
 	```
-	# ./ip6neigh_install.sh 
+	# ./ip6neigh_setup.sh install
 	Checking installer version...
 	Installer script is up to date.
 
-	Creating directory /usr/lib/ip6neigh/
-	Downloading main/ip6neigh_mon.sh
+	Creating directory /usr/share/ip6neigh/
+	Downloading main/ip6neigh_svc.sh
 	Downloading etc/init.d/ip6neigh
 	Downloading etc/hotplug.d/iface/30-ip6neigh
 	Downloading etc/config/ip6neigh
@@ -55,15 +55,15 @@ IPv6 addresses are difficult to remember. DNS provides an abstraction layer, so 
 
 	Not overwriting existing config file /etc/config/ip6neigh.
 	The downloaded example config file will be moved to /etc/config/ip6neigh.example.
+	Removing directory tree /tmp/ip6neigh/
 
 	The installation was successful. Run the following command if you want to download an offline OUI lookup database:
 
-	/usr/lib/ip6neigh/ip6neigh_oui_download.sh
+	ip6neigh_oui_download.sh
 
 	Start ip6neigh by running:
 
 	/etc/init.d/ip6neigh start
-
 	#
 	```
    
@@ -89,20 +89,23 @@ manually with
 
 ### Uninstalling ip6neigh
 
-ip6neigh can be uninstalled by using the remove `-r	` parameter to the installer:
+ip6neigh can be uninstalled by using the remove `remove` parameter to the installer:
 
 	```
-	/tmp/ip6neigh_install.sh 
+	/tmp/ip6neigh_setup.sh remove 
 	Stopping ip6neigh...
 
-	Removing /usr/lib/ip6neigh/ip6neigh_mon.sh
-	Removing /etc/init.d/ip6neigh
+	Removing /tmp/hosts/ip6neigh
+	Removing /tmp/ip6neigh.cache
 	Removing /etc/hotplug.d/iface/30-ip6neigh
-	Removing /usr/lib/ip6neigh/ip6neigh_oui_download.sh
-	Removing /usr/lib/ip6neigh/ip6neigh_host_show.sh
-	Removing /usr/lib/ip6neigh/ip6neigh_ddns.sh
-
-	Removing directory /usr/lib/ip6neigh/
+	Removing etc/hotplug.d/iface/30-ip6neigh
+	Removing /etc/init.d/ip6neigh
+	Removing etc/init.d/ip6neigh
+	Removing /usr/bin/ip6neigh_ddns.sh
+	Removing /usr/bin/ip6neigh_host_show.sh
+	Removing /usr/bin/ip6neigh_oui_download.sh
+	Removing /usr/bin/ip6neigh_svc.sh
+	Removing directory tree /usr/share/ip6neigh/
 
 	The config file /etc/config/ip6neigh was kept in place for future use. Please remove this file manually if you will not need it anymore.
 
@@ -160,7 +163,7 @@ It is possible to see the host file via the LuCI web interface by using luci-app
 	
 
 ## Installing MAC OUI lookup feature
-`ip6neigh_mon.sh` can use an offline MAC address OUI lookup, if the file `oui.gz` is present. This makes names more readable for clients which do not send their hostname (e.g. the Chromebook) when making a DHCP request.
+`ip6neigh_svc.sh` can use an offline MAC address OUI lookup, if the file `oui.gz` is present. This makes names more readable for clients which do not send their hostname (e.g. the Chromebook) when making a DHCP request.
 
 To install, run `ip6neigh_oui_download.sh` tool, which will install oui.gz for offline oui lookup.
 
@@ -176,7 +179,7 @@ Applying filters...
 Compressing database...
 Moving the file...
 
-The new compressed OUI database file is at: /usr/lib/ip6neigh/oui.gz
+The new compressed OUI database file is at: /usr/share/ip6neigh/oui.gz
 # 
 
 ```
@@ -185,13 +188,13 @@ Hosts which do not send their hostname (e.g. Unknown-9BA.LL.lan) will now have a
 
 ## Troubleshooting
 
-`ip6neigh_mon` should start up after step 6 above. You can check that it is running by typing
+`ip6neigh_svc` should start up after step 6 above. You can check that it is running by typing
 
 ```
 # ps | grep ip6negh
- 3718 root      1356 S    grep ip6neigh
-20882 root      1444 S    {ip6neigh_mon.sh} /bin/sh /usr/lib/ip6neigh/ip6neigh_mon.sh -s
-20916 root      1448 S    {ip6neigh_mon.sh} /bin/sh /usr/lib/ip6neigh/ip6neigh_mon.sh -s
+16727 root      1452 S    {ip6neigh_svc.sh} /bin/sh /usr/bin/ip6neigh_svc.sh -s
+16773 root      1452 S    {ip6neigh_svc.sh} /bin/sh /usr/bin/ip6neigh_svc.sh -s
+16775 root      1356 S    grep ip6
 # 
 ```
 
@@ -254,7 +257,7 @@ Names will be discovered in the following order (and priority):
 
 ### Assumptions
 
-ip6neigh_mon.sh assumes that IPv6 subnets are /64 (which is what hosts should see in an IPv6 network for SLAAC to work). It also assumes DHCPv4 and SLAAC environments, but can also work in other environments (such as DHCPv6-only).
+ip6neigh_svc.sh assumes that IPv6 subnets are /64 (which is what hosts should see in an IPv6 network for SLAAC to work). It also assumes DHCPv4 and SLAAC environments, but can also work in other environments (such as DHCPv6-only).
 
 ## Contributors
 
