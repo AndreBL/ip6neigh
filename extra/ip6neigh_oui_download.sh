@@ -14,7 +14,7 @@
 #
 #	by André Lange	Dec 2016
 
-readonly INSTALL_DIR="/usr/lib/ip6neigh/"
+readonly SHARE_DIR="/usr/lib/ip6neigh/"
 
 echo "Downloading Nmap MAC prefixes..."
 wget -O '/tmp/oui-raw.txt' 'http://linuxnet.ca/ieee/oui/nmap-mac-prefixes' || exit 1
@@ -28,6 +28,6 @@ mv /tmp/oui-filt.txt /tmp/oui
 gzip -f /tmp/oui || exit 2
 
 echo "Moving the file..."
-mv /tmp/oui.gz "$INSTALL_DIR" || exit 3
+mv /tmp/oui.gz "$SHARE_DIR" || exit 3
 
-echo -e "\nThe new compressed OUI database file is at: ${INSTALL_DIR}oui.gz"
+echo -e "\nThe new compressed OUI database file is at: ${SHARE_DIR}oui.gz"

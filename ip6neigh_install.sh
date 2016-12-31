@@ -16,30 +16,42 @@
 
 readonly SETUP_VER=1
 
-readonly INSTALL_DIR="/usr/lib/ip6neigh/"
-readonly CONFIG_FILE="/etc/config/ip6neigh"
+readonly BIN_DIR="/usr/bin/"
+readonly SHARE_DIR="/usr/share/ip6neigh/"
+readonly TEMP_DIR="/tmp/ip6neigh/"
 
-readonly TEMP="/tmp/ip6neigh"
+readonly CONFIG_FILE="/etc/config/ip6neigh"
+readonly HOSTS_FILE="/tmp/hosts/ip6neigh"
+readonly CACHE_FILE="/tmp/ip6neigh.cache"
+
 readonly REPO="https://raw.githubusercontent.com/AndreBL/ip6neigh/master/"
 
 #Installation list
-readonly list="
-dir /usr/lib/ip6neigh/
-file /usr/lib/ip6neigh/ip6neigh_mon.sh main/ip6neigh_mon.sh x
+readonly inst_list="
+dir ${SHARE_DIR}
+file ${BIN_DIR}ip6neigh_mon.sh main/ip6neigh_mon.sh x
 file /etc/init.d/ip6neigh etc/init.d/ip6neigh x
 file /etc/hotplug.d/iface/30-ip6neigh etc/hotplug.d/iface/30-ip6neigh x
-file /tmp/ip6neigh/config etc/config/ip6neigh
+file ${TEMP_DIR}config etc/config/ip6neigh
 
-file /usr/lib/ip6neigh/ip6neigh_oui_download.sh extra/ip6neigh_oui_download.sh x
-file /usr/lib/ip6neigh/ip6neigh_host_show.sh extra/ip6neigh_host_show.sh x
-file /usr/lib/ip6neigh/ip6neigh_ddns.sh extra/ip6neigh_ddns.sh x
+file ${BIN_DIR}ip6neigh_oui_download.sh extra/ip6neigh_oui_download.sh x
+file ${BIN_DIR}ip6neigh_host_show.sh extra/ip6neigh_host_show.sh x
+file ${BIN_DIR}ip6neigh_ddns.sh extra/ip6neigh_ddns.sh x
+"
+
+#Uninstallation list
+readonly uninst_list="
+file /etc/hotplug.d/iface/30-ip6neigh etc/hotplug.d/iface/30-ip6neigh
+file /etc/init.d/ip6neigh etc/init.d/ip6neigh
+file ${BIN_DIR}ip6neigh_*.sh
+tree ${SHARE_DIR}
 "
 
 #Success message
 readonly SUCCESS_MSG="
 The installation was successful. Run the following command if you want to download an offline OUI lookup database:
 
-${INSTALL_DIR}ip6neigh_oui_download.sh
+ip6neigh_oui_download.sh
 
 Start ip6neigh by running:
 
@@ -101,7 +113,7 @@ install_line() {
 uninstall_line() {
 	local command="$1"
 	case "$command" in
-		#Remove directory
+		#Remove single directory
 		"dir")
 			local dirname="$2"
 			if [ -d "$dirname" ]; then
@@ -110,7 +122,16 @@ uninstall_line() {
 			fi
 		;;
 		
-		#Remove file
+		#Remove directory tree
+		"tree")
+			local dirname="$2"
+			if [ -d "$dirname" ]; then
+				echo "Removing directory tree ${dirname}"
+				rm -rf "$dirname" || flag_error
+			fi
+		;;
+		
+		#Remove files
 		"file")
 			local fname="$2"
 			if [ -f "$fname" ]; then
@@ -123,22 +144,22 @@ uninstall_line() {
 
 #Installation routine
 install() {
-	mkdir -p "$TEMP" || errormsg "Failed to create directory $TEMP"
+	mkdir -p "$TEMP_DIR" || errormsg "Failed to create directory $TEMP_DIR"
 	
 	#Check if this installer's version match the repository
 	echo "Checking installer version..."
-	download_file "${TEMP}/VERSION" "setup/VERSION"
-	[ "$SETUP_VER" = "$(cat $TEMP/VERSION)" ] || errormsg "This installation script is out of date. Please visit https://github.com/AndreBL/ip6neigh and check if a new version of the installer is available for download."
+	download_file "${TEMP_DIR}VERSION" "setup/VERSION"
+	[ "$SETUP_VER" = "$(cat ${TEMP_DIR}VERSION)" ] || errormsg "This installation script is out of date. Please visit https://github.com/AndreBL/ip6neigh and check if a new version of the installer is available for download."
 	echo "Installer script is up to date."
 	
 	#Check if already installed
-	[ -d "$INSTALL_DIR" ] && echo -e "\n The existing installation of ip6neigh will be overwritten."
+	[ -d "$SHARE_DIR" ] && echo -e "\n The existing installation of ip6neigh will be overwritten."
 	
-	#Process file list
+	#Process install list
 	echo -e
 	local line
 	IFS=$'\n'
-	for line in $list;
+	for line in $inst_list;
 	do
 		IFS=' '
 		[ -n "$line" ] && install_line $line
@@ -153,13 +174,16 @@ install() {
 		mv /tmp/ip6neigh/config "$CONFIG_FILE" || "Failed to move the configuration file"
 	fi
 	
+	#Remove temporary directory
+	uninstall_line tree "$TEMP_DIR"
+	
 	#Successful installation
 	echo -e "$SUCCESS_MSG"
 }
 
 #Uninstallation routine
 uninstall() {
-	[ -d "$INSTALL_DIR" ] || errormsg "ip6neigh is not installed in this system."
+	[ -d "$SHARE_DIR" ] || errormsg "ip6neigh is not installed in this system."
 	
 	#Check if ip6neigh is running
 	pgrep -f ip6neigh_mon.sh >/dev/null
@@ -170,28 +194,20 @@ uninstall() {
 		echo -e
 	fi
 	
-	#Removes files
-	local flist=$(echo "$list" | grep "^file ")
-	local dlist=$(echo "$list" | grep "^dir ")
-	local line
+	#Remove hosts and cache files
+	uninstall_line file "$HOSTS_FILE"
+	uninstall_line file "$CACHE_FILE"
+	
+	#Process uninstall list
 	IFS=$'\n'
-	for line in $flist;
+	for line in $uninst_list;
 	do
 		IFS=' '
 		[ -n "$line" ] && uninstall_line $line
 	done
 	
-	#Remove OUI file
-	uninstall_line file "${INSTALL_DIR}oui.gz"
-	
-	#Removes directories
-	echo -e
-	IFS=$'\n'
-	for line in $dlist;
-	do
-		IFS=' '
-		[ -n "$line" ] && uninstall_line $line
-	done
+	#Remove temporary directory
+	uninstall_line tree "$TEMP_DIR"
 	
 	[ -f "$CONFIG_FILE" ] && echo -e "\nThe config file $CONFIG_FILE was kept in place for future use. Please remove this file manually if you will not need it anymore."
 	
@@ -202,8 +218,6 @@ uninstall() {
 		errormsg "Some files or directories could not be removed. Check previous error messages."
 	fi
 }
-
-[ -n "INSTALL_DIR" ] || errormsg "installation directory is undefined in the install script."
 
 #Check input parameters
 case "$1" in

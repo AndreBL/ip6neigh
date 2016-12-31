@@ -2,7 +2,7 @@
 
 START=96
 
-readonly SCRIPT_FILE="/usr/lib/ip6neigh/ip6neigh_mon.sh"
+readonly SCRIPT_FILE="/usr/bin/ip6neigh_mon.sh"
 
 errormsg() {
 	local msg="Error: $1"
