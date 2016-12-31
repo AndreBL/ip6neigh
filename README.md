@@ -71,7 +71,8 @@ IPv6 addresses are difficult to remember. DNS provides an abstraction layer, so 
    Examples provided at: [dhcp](https://github.com/AndreBL/ip6neigh/blob/master/etc/config/dhcp)
 
 6. Start ip6neigh...
-manually with
+
+	manually with
 
     ```
     /etc/init.d/ip6neigh start
@@ -127,7 +128,7 @@ It is possible to see the host file via the LuCI web interface by using luci-app
 	#ip6neigh commands
 	config command
         	option name 'IPv6 Neighbors'
-        	option command '/usr/lib/ip6neigh/ip6neigh_host_show.sh'
+        	option command 'ip6neigh_host_show.sh'
 
 	config command
         	option name 'ip6neigh log'
