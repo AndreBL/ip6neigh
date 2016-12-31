@@ -19,37 +19,57 @@ IPv6 addresses are difficult to remember. DNS provides an abstraction layer, so 
 
 ## Installation
 
-1. Create script `/usr/lib/ip6neigh/ip6neigh_mon.sh` . If you want to store it in a different place, you'll need to change the path in the init.d script.
+1. Install dependencies, `ip` and `curl`
 
-    Script code is at: [ip6neigh_mon.sh](https://github.com/AndreBL/ip6neigh/blob/master/main/ip6neigh_mon.sh)
-	
-	Make it executable with:
-	
 	```
-	chmod +x /usr/lib/ip6neigh/ip6neigh_mon.sh
+	# opkg update
+	# opkg install ip
+	# opkg install curl
+	#
 	```
-2. Create initialization script `/etc/init.d/ip6neigh`
-
-    Script code is at: [ip6neigh](https://github.com/AndreBL/ip6neigh/blob/master/etc/init.d/ip6neigh)
-
-	Make it executable with:
+	
+2. Download the installer script script to /tmp on your router by running the following command:
 	
 	```
-	chmod +x /etc/init.d/ip6neigh
+	curl -k -o /tmp/ip6neigh_install.sh https://raw.githubusercontent.com/AndreBL/ip6neigh/master/ip6neigh_install.sh
 	```
-3. Create hotplug script `/etc/hotplug.d/iface/30-ip6neigh`
 
-    Script code is at: [30-ip6neigh](https://github.com/AndreBL/ip6neigh/blob/master/etc/hotplug.d/iface/30-ip6neigh)
+3. Change directory to /tmp, and run `ip6neigh_install.sh`
+
 	
-4. Create UCI config file `/etc/config/ip6neigh`
+	```
+	# ./ip6neigh_install.sh 
+	Checking installer version...
+	Installer script is up to date.
 
-   Example config is at: [ip6neigh](https://github.com/AndreBL/ip6neigh/blob/master/etc/config/ip6neigh)
+	Creating directory /usr/lib/ip6neigh/
+	Downloading main/ip6neigh_mon.sh
+	Downloading etc/init.d/ip6neigh
+	Downloading etc/hotplug.d/iface/30-ip6neigh
+	Downloading etc/config/ip6neigh
+	Downloading extra/ip6neigh_oui_download.sh
+	Downloading extra/ip6neigh_host_show.sh
+	Downloading extra/ip6neigh_ddns.sh
+
+	Not overwriting existing config file /etc/config/ip6neigh.
+	The downloaded example config file will be moved to /etc/config/ip6neigh.example.
+
+	The installation was successful. Run the following command if you want to download an offline OUI lookup database:
+
+	/usr/lib/ip6neigh/ip6neigh_oui_download.sh
+
+	Start ip6neigh by running:
+
+	/etc/init.d/ip6neigh start
+
+	#
+	```
    
-5. (Optional) Edit your current dhcp config file /etc/config/dhcp for adding predefined SLAAC hosts. 
+4. (Optional) Edit your current dhcp config file /etc/config/dhcp for adding predefined SLAAC hosts. 
 
    Examples provided at: [dhcp](https://github.com/AndreBL/ip6neigh/blob/master/etc/config/dhcp)
 
-6. Start it...
+6. Start ip6neigh...
 manually with
 
     ```
@@ -64,6 +84,29 @@ manually with
 	reboot
 	```
 7. Use names instead of addresses for connecting to IPv6 hosts in your network.
+
+### Uninstalling ip6neigh
+
+ip6neigh can be uninstalled by using the remove `-r	` parameter to the installer:
+
+	```
+	/tmp/ip6neigh_install.sh 
+	Stopping ip6neigh...
+
+	Removing /usr/lib/ip6neigh/ip6neigh_mon.sh
+	Removing /etc/init.d/ip6neigh
+	Removing /etc/hotplug.d/iface/30-ip6neigh
+	Removing /usr/lib/ip6neigh/ip6neigh_oui_download.sh
+	Removing /usr/lib/ip6neigh/ip6neigh_host_show.sh
+	Removing /usr/lib/ip6neigh/ip6neigh_ddns.sh
+
+	Removing directory /usr/lib/ip6neigh/
+
+	The config file /etc/config/ip6neigh was kept in place for future use. Please remove this file manually if you will not need it anymore.
+
+	Finished uninstalling ip6neigh.
+	#
+	```
 
 ## Accessing the Host file from the Web (LuCI) 
 It is possible to see the host file via the LuCI web interface by using luci-app-commands package. 
@@ -89,30 +132,35 @@ It is possible to see the host file via the LuCI web interface by using luci-app
         	option command 'cat /tmp/log/ip6neigh.log'
 
 	```
-3. Create script `/usr/lib/ip6neigh/ip6neigh_host_show.sh` .
 
-    Script code is at: [ip6neigh_host_show.sh](https://github.com/AndreBL/ip6neigh/blob/master/extra/ip6neigh_host_show.sh)
-	
-	Make it executable with:
-	
-	```
-	chmod +x /usr/lib/ip6neigh/ip6neigh_host_show.sh
-	```
-
-
-4. Now log into the LuCI web interface:
+3. Now log into the LuCI web interface:
 
 ![Figure 1](art/openwrt_login_router.lan.png?raw=true)
 
-5. And Navigate to System->Custom Commands. Clicking on **Run** will display the host file:
+4. And Navigate to System->Custom Commands. Clicking on **Run** will display the host file:
 
 ![Figure 2](art/ip6neigh_host_show_web.png?raw=true)
 
+5. Or run from CLI
+
+	```
+	# /usr/lib/ip6neigh/ip6neigh_host_show.sh 
+	#Predefined                              SLAAC addresses
+	fe80::224:a5ff:fed7:3088                 Router.LL.lan 
+	2001:470:ebbd:4::1                       Router 
+
+	#Discovered                              IPv6 neighbors
+	fe80::5048:e4ff:fe4d:a27d                alarm.LL.lan 
+	2001:470:ebbd:4:5048:e4ff:fe4d:a27d      alarm 
+	# 
+
+	```
+	
 
 ## Installing MAC OUI lookup feature
 `ip6neigh_mon.sh` can use an offline MAC address OUI lookup, if the file `oui.gz` is present. This makes names more readable for clients which do not send their hostname (e.g. the Chromebook) when making a DHCP request.
 
-To install, copy the `oui.gz` file to the router /usr/lib/ip6neigh/ directory by running `ip6neigh_oui_download.sh` tool:
+To install, run `ip6neigh_oui_download.sh` tool, which will install oui.gz for offline oui lookup.
 
 
 ```
@@ -183,7 +231,7 @@ fe80::5048:e4ff:fe4d:a27d                alarm.LL.lan
 
 ## Dependencies
 
-One only needs to install `ip` package. It has been tested on Chaos Calmer (v15.05.1) of OpenWrt. 
+One only needs to install `ip` and `curl` packages. It has been tested on Chaos Calmer (v15.05.1) of OpenWrt. 
 
 In order to use the LuCI web interface, one must install `luci-app-commands`   
 
@@ -204,7 +252,7 @@ Names will be discovered in the following order (and priority):
 
 ### Assumptions
 
-ip6neigh_mon.sh assumes that IPv6 subnets are /64 (which is what hosts should see in an IPv6 network for SLAAC to work). It also assumes DHCPv4 and SLAAC environments.
+ip6neigh_mon.sh assumes that IPv6 subnets are /64 (which is what hosts should see in an IPv6 network for SLAAC to work). It also assumes DHCPv4 and SLAAC environments, but can also work in other environments (such as DHCPv6-only).
 
 ## Contributors
 
