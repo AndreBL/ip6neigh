@@ -31,7 +31,9 @@ IPv6 addresses are difficult to remember. DNS provides an abstraction layer, so 
 2. Download the installer script script to /tmp on your router by running the following command:
 	
 	```
-	curl -k -o /tmp/ip6neigh_install.sh https://raw.githubusercontent.com/AndreBL/ip6neigh/master/ip6neigh_install.sh
+	# curl -k -o /tmp/ip6neigh_install.sh https://raw.githubusercontent.com/AndreBL/ip6neigh/master/ip6neigh_install.sh
+	# chmod +x /tmp/ip6neigh_install.sh
+	#
 	```
 
 3. Change directory to /tmp, and run `ip6neigh_install.sh`
