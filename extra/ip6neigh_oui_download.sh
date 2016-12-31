@@ -14,7 +14,7 @@
 #
 #	by André Lange	Dec 2016
 
-readonly SHARE_DIR="/usr/lib/ip6neigh/"
+readonly SHARE_DIR="/usr/share/ip6neigh/"
 
 echo "Downloading Nmap MAC prefixes..."
 wget -O '/tmp/oui-raw.txt' 'http://linuxnet.ca/ieee/oui/nmap-mac-prefixes' || exit 1

@@ -133,11 +133,15 @@ uninstall_line() {
 		
 		#Remove files
 		"file")
-			local fname="$2"
-			if [ -f "$fname" ]; then
-				echo "Removing ${fname}"
-				rm "$fname" || flag_error
-			fi
+			shift
+			local fname
+			for fname in "$@";
+			do
+				if [ -f "$fname" ]; then
+					echo "Removing ${fname}"
+					rm "$fname" || flag_error
+				fi
+			done
 		;;
 	esac
 }
