@@ -3,7 +3,7 @@
 START=96
 
 readonly BIN_PATH="/usr/bin/"
-readonly SERVICE_NAME="ip6neigh_service.sh"
+readonly SERVICE_NAME="ip6neigh_svc.sh"
 readonly SERVICE_SCRIPT="${BIN_PATH}${SERVICE_NAME}"
 
 errormsg() {

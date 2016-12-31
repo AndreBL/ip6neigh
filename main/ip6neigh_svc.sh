@@ -29,6 +29,8 @@ if [ "$1" != "-s" ]; then
 	echo -e
 	echo "/etc/init.d/ip6neigh start"
 	echo -e
+	
+	exit 1
 fi
 
 #Program definitions

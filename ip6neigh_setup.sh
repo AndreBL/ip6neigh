@@ -24,12 +24,14 @@ readonly CONFIG_FILE="/etc/config/ip6neigh"
 readonly HOSTS_FILE="/tmp/hosts/ip6neigh"
 readonly CACHE_FILE="/tmp/ip6neigh.cache"
 
+readonly SERVICE_NAME="ip6neigh_svc.sh"
+
 readonly REPO="https://raw.githubusercontent.com/AndreBL/ip6neigh/master/"
 
 #Installation list
 readonly inst_list="
 dir ${SHARE_DIR}
-file ${BIN_DIR}ip6neigh_mon.sh main/ip6neigh_mon.sh x
+file ${BIN_DIR}ip6neigh_svc.sh main/ip6neigh_svc.sh x
 file /etc/init.d/ip6neigh etc/init.d/ip6neigh x
 file /etc/hotplug.d/iface/30-ip6neigh etc/hotplug.d/iface/30-ip6neigh x
 file ${TEMP_DIR}config etc/config/ip6neigh
@@ -190,7 +192,7 @@ uninstall() {
 	[ -d "$SHARE_DIR" ] || errormsg "ip6neigh is not installed on this system."
 	
 	#Check if ip6neigh is running
-	pgrep -f ip6neigh_mon.sh >/dev/null
+	pgrep -f "$SERVICE_NAME" >/dev/null
 	if [ "$?" = 0 ]; then
 		echo "Stopping ip6neigh..."
 		/etc/init.d/ip6neigh stop
