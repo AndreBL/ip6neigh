@@ -92,27 +92,27 @@ IPv6 addresses are difficult to remember. DNS provides an abstraction layer, so 
 
 ip6neigh can be uninstalled by using the `remove` parameter to the installer:
 
-	```
-	/tmp/ip6neigh_setup.sh remove 
-	Stopping ip6neigh...
+```
+/tmp/ip6neigh_setup.sh remove 
+Stopping ip6neigh...
 
-	Removing /tmp/hosts/ip6neigh
-	Removing /tmp/ip6neigh.cache
-	Removing /etc/hotplug.d/iface/30-ip6neigh
-	Removing etc/hotplug.d/iface/30-ip6neigh
-	Removing /etc/init.d/ip6neigh
-	Removing etc/init.d/ip6neigh
-	Removing /usr/bin/ip6neigh_ddns.sh
-	Removing /usr/bin/ip6neigh_host_show.sh
-	Removing /usr/bin/ip6neigh_oui_download.sh
-	Removing /usr/bin/ip6neigh_setup.sh
-	Removing /usr/sbin/ip6neigh_svc.sh
-	Removing directory tree /usr/share/ip6neigh/
+Removing /tmp/hosts/ip6neigh
+Removing /tmp/ip6neigh.cache
+Removing /etc/hotplug.d/iface/30-ip6neigh
+Removing etc/hotplug.d/iface/30-ip6neigh
+Removing /etc/init.d/ip6neigh
+Removing etc/init.d/ip6neigh
+Removing /usr/bin/ip6neigh_ddns.sh
+Removing /usr/bin/ip6neigh_host_show.sh
+Removing /usr/bin/ip6neigh_oui_download.sh
+Removing /usr/bin/ip6neigh_setup.sh
+Removing /usr/sbin/ip6neigh_svc.sh
+Removing directory tree /usr/share/ip6neigh/
 
-	The config file /etc/config/ip6neigh was kept in place for future use. Please remove this file manually if you will not need it anymore.
+The config file /etc/config/ip6neigh was kept in place for future use. Please remove this file manually if you will not need it anymore.
 
-	Finished uninstalling ip6neigh.
-	```
+Finished uninstalling ip6neigh.
+```
 
 ## Accessing the Host file from the Web (LuCI) 
 It is possible to see the host file via the LuCI web interface by using luci-app-commands package. 
