@@ -89,7 +89,7 @@ manually with
 
 ### Uninstalling ip6neigh
 
-ip6neigh can be uninstalled by using the remove `remove` parameter to the installer:
+ip6neigh can be uninstalled by using the `remove` parameter to the installer:
 
 	```
 	/tmp/ip6neigh_setup.sh remove 
@@ -149,7 +149,7 @@ It is possible to see the host file via the LuCI web interface by using luci-app
 5. Or run from CLI
 
 	```
-	# /usr/lib/ip6neigh/ip6neigh_host_show.sh 
+	# ip6neigh_host_show.sh 
 	#Predefined                              SLAAC addresses
 	fe80::224:a5ff:fed7:3088                 Router.LL.lan 
 	2001:470:ebbd:4::1                       Router 
@@ -169,7 +169,6 @@ To install, run `ip6neigh_oui_download.sh` tool, which will install oui.gz for o
 
 
 ```
-cd /usr/lib/ip6neigh/
 #./ip6neigh_oui_download.sh 
 Downloading Nmap MAC prefixes...
 Connecting to linuxnet.ca (24.222.55.20:80)
@@ -220,7 +219,7 @@ Tue Dec 27 01:32:20 UTC 2016 Probing other possible addresses for hau: fe80::d69
 To list the hostnames detected by **ip6neigh**.
 
 ```
-# /usr/lib/ip6neigh/ip6neigh_host_show.sh
+# ip6neigh_host_show.sh
 #Predefined                              SLAAC addresses
 fe80::224:a5ff:fed7:3088                 Router.LL.lan 
 2001:470:ebbd:4::1                       Router 
