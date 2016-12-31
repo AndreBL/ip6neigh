@@ -691,7 +691,7 @@ if [ "$LOG" != "0" ] && [ "$LOG" != "1" ]; then
 fi
 
 #Startup message
-logmsg "Starting ip6neigh script for physdev $LAN_DEV with domain $DOMAIN"
+logmsg "Starting ip6neigh service script for physdev $LAN_DEV with domain $DOMAIN"
 
 #Gets the IPv6 addresses from the LAN device.
 ll_cidr=$(ip -6 addr show "$LAN_DEV" scope link 2>/dev/null | grep -m 1 "inet6" | awk '{print $2}')
@@ -762,6 +762,13 @@ ip -6 neigh flush dev "$LAN_DEV"
 ping6 -q -W 1 -c 3 -s 0 -I "$LAN_DEV" ff02::1 >/dev/null 2>/dev/null
 [ -n "$ula_address" ] && ping6 -q -W 1 -c 3 -s 0 -I "$ula_address" ff02::1 >/dev/null 2>/dev/null
 [ -n "$gua_address" ] && ping6 -q -W 1 -c 3 -s 0 -I "$gua_address" ff02::1 >/dev/null 2>/dev/null
+
+#Trap service stop
+terminate() {
+	logmsg "Terminating service script."
+	exit 0
+}
+trap terminate HUP INT TERM
 
 #Infinite main loop. Keeps monitoring changes in IPv6 neighbor's reachability status and call process() routine.
 ip -6 monitor neigh dev "$LAN_DEV" |

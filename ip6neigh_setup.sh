@@ -17,6 +17,7 @@
 readonly SETUP_VER=1
 
 readonly BIN_DIR="/usr/bin/"
+readonly SBIN_DIR="/usr/sbin/"
 readonly SHARE_DIR="/usr/share/ip6neigh/"
 readonly TEMP_DIR="/tmp/ip6neigh/"
 
@@ -31,7 +32,7 @@ readonly REPO="https://raw.githubusercontent.com/AndreBL/ip6neigh/master/"
 #Installation list
 readonly inst_list="
 dir ${SHARE_DIR}
-file ${BIN_DIR}ip6neigh_svc.sh main/ip6neigh_svc.sh x
+file ${SBIN_DIR}ip6neigh_svc.sh main/ip6neigh_svc.sh x
 file /etc/init.d/ip6neigh etc/init.d/ip6neigh x
 file /etc/hotplug.d/iface/30-ip6neigh etc/hotplug.d/iface/30-ip6neigh x
 file ${TEMP_DIR}config etc/config/ip6neigh
@@ -46,18 +47,21 @@ readonly uninst_list="
 file /etc/hotplug.d/iface/30-ip6neigh etc/hotplug.d/iface/30-ip6neigh
 file /etc/init.d/ip6neigh etc/init.d/ip6neigh
 file ${BIN_DIR}ip6neigh_*.sh
+file ${SBIN_DIR}ip6neigh_*.sh
 tree ${SHARE_DIR}
 "
 
 #Success message
 readonly SUCCESS_MSG="
-The installation was successful. Run the following command if you want to download an offline OUI lookup database:
+--- The installation was successful. ---
 
-ip6neigh_oui_download.sh
+Run the following command if you want to download an offline OUI lookup database:
+
+	ip6neigh_oui_download.sh
 
 Start ip6neigh by running:
 
-/etc/init.d/ip6neigh start
+	/etc/init.d/ip6neigh start
 "
 
 #Writes error message to stderr and exit program.
@@ -233,8 +237,8 @@ display_help() {
 	echo -e
 	echo "where command is one of:"
 	echo -e
-	echo -e "\tinstall\t\tInstall ip6neigh"
-	echo -e "\tremove\t\tRemove ip6neigh from the system"
+	echo "	install		Install ip6neigh"
+	echo "	remove		Remove ip6neigh from the system"
 	echo -e
 }
 

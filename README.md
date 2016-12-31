@@ -25,7 +25,6 @@ IPv6 addresses are difficult to remember. DNS provides an abstraction layer, so 
 	# opkg update
 	# opkg install ip
 	# opkg install curl
-	#
 	```
 	
 2. Download the installer script script to /tmp on your router by running the following command:
@@ -33,7 +32,6 @@ IPv6 addresses are difficult to remember. DNS provides an abstraction layer, so 
 	```
 	# curl -k -o /tmp/ip6neigh_setup.sh https://raw.githubusercontent.com/AndreBL/ip6neigh/master/ip6neigh_setup.sh
 	# chmod +x /tmp/ip6neigh_setup.sh
-	#
 	```
 
 3. Change directory to /tmp, and run `ip6neigh_setup.sh install`
@@ -57,14 +55,15 @@ IPv6 addresses are difficult to remember. DNS provides an abstraction layer, so 
 	The downloaded example config file will be moved to /etc/config/ip6neigh.example.
 	Removing directory tree /tmp/ip6neigh/
 
-	The installation was successful. Run the following command if you want to download an offline OUI lookup database:
+	--- The installation was successful. ---
+	
+	Run the following command if you want to download an offline OUI lookup database:
 
-	ip6neigh_oui_download.sh
+		ip6neigh_oui_download.sh
 
 	Start ip6neigh by running:
 
-	/etc/init.d/ip6neigh start
-	#
+		/etc/init.d/ip6neigh start
 	```
    
 4. (Optional) Edit your current dhcp config file /etc/config/dhcp for adding predefined SLAAC hosts. 
@@ -104,13 +103,12 @@ ip6neigh can be uninstalled by using the `remove` parameter to the installer:
 	Removing /usr/bin/ip6neigh_ddns.sh
 	Removing /usr/bin/ip6neigh_host_show.sh
 	Removing /usr/bin/ip6neigh_oui_download.sh
-	Removing /usr/bin/ip6neigh_svc.sh
+	Removing /usr/sbin/ip6neigh_svc.sh
 	Removing directory tree /usr/share/ip6neigh/
 
 	The config file /etc/config/ip6neigh was kept in place for future use. Please remove this file manually if you will not need it anymore.
 
 	Finished uninstalling ip6neigh.
-	#
 	```
 
 ## Accessing the Host file from the Web (LuCI) 
@@ -121,7 +119,6 @@ It is possible to see the host file via the LuCI web interface by using luci-app
 	```
 	opkg update
 	opkg install luci-app-commands
-
 	```
 
 2. Once installed, add the following to /etc/config/luci
@@ -135,7 +132,6 @@ It is possible to see the host file via the LuCI web interface by using luci-app
 	config command
         	option name 'ip6neigh log'
         	option command 'cat /tmp/log/ip6neigh.log'
-
 	```
 
 3. Now log into the LuCI web interface:
@@ -157,8 +153,6 @@ It is possible to see the host file via the LuCI web interface by using luci-app
 	#Discovered                              IPv6 neighbors
 	fe80::5048:e4ff:fe4d:a27d                alarm.LL.lan 
 	2001:470:ebbd:4:5048:e4ff:fe4d:a27d      alarm 
-	# 
-
 	```
 	
 
@@ -179,8 +173,6 @@ Compressing database...
 Moving the file...
 
 The new compressed OUI database file is at: /usr/share/ip6neigh/oui.gz
-# 
-
 ```
 
 Hosts which do not send their hostname (e.g. Unknown-9BA.LL.lan) will now have an OUI manufacterer as part of the name, such as Speed-9BA.LL.lan (Speed is a Speed Dragon Multimedia Limited MAC device).
@@ -191,10 +183,9 @@ Hosts which do not send their hostname (e.g. Unknown-9BA.LL.lan) will now have a
 
 ```
 # ps | grep ip6negh
-16727 root      1452 S    {ip6neigh_svc.sh} /bin/sh /usr/bin/ip6neigh_svc.sh -s
-16773 root      1452 S    {ip6neigh_svc.sh} /bin/sh /usr/bin/ip6neigh_svc.sh -s
+16727 root      1452 S    {ip6neigh_svc.sh} /bin/sh /usr/sbin/ip6neigh_svc.sh -s
+16773 root      1452 S    {ip6neigh_svc.sh} /bin/sh /usr/sbin/ip6neigh_svc.sh -s
 16775 root      1356 S    grep ip6
-# 
 ```
 
 You can also check the log file (enabled/disabled in `/etc/config/ip6negh`)
@@ -213,7 +204,6 @@ Tue Dec 27 01:32:19 UTC 2016 Added: Unknown-01e0a4.TMP.lan 2001:470:ebbd:4:1d82:
 Tue Dec 27 01:32:19 UTC 2016 Probing other possible addresses for Unknown-01e0a4: fe80::1d82:c1c3:c2a3:d46b fe80::d69a:20ff:fe01:e0a4 
 Tue Dec 27 01:32:20 UTC 2016 Added: hau 2001:470:ebbd:4:d69a:20ff:fe01:e0a4
 Tue Dec 27 01:32:20 UTC 2016 Probing other possible addresses for hau: fe80::d69a:20ff:fe01:e0a4 
-# 
 ```
    
 To list the hostnames detected by **ip6neigh**.
@@ -230,7 +220,6 @@ fe80::d69a:20ff:fe01:e0a4                hau.LL.lan
 fe80::5048:e4ff:fe4d:a27d                alarm.LL.lan 
 2001:470:ebbd:4:d69a:20ff:fe01:e0a4      hau 
 2001:470:ebbd:4:5048:e4ff:fe4d:a27d      alarm 
-# 
 ```
 
 ## Dependencies

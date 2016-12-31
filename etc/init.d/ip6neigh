@@ -2,9 +2,9 @@
 
 START=96
 
-readonly BIN_PATH="/usr/bin/"
+readonly SBIN_PATH="/usr/sbin/"
 readonly SERVICE_NAME="ip6neigh_svc.sh"
-readonly SERVICE_SCRIPT="${BIN_PATH}${SERVICE_NAME}"
+readonly SERVICE_SCRIPT="${SBIN_PATH}${SERVICE_NAME}"
 
 errormsg() {
 	local msg="Error: $1"
