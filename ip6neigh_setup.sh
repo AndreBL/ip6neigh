@@ -32,6 +32,7 @@ readonly REPO="https://raw.githubusercontent.com/AndreBL/ip6neigh/master/"
 #Installation list
 readonly inst_list="
 dir ${SHARE_DIR}
+file ${BIN_DIR}ip6neigh_setup.sh ip6neigh_setup.sh x
 file ${SBIN_DIR}ip6neigh_svc.sh main/ip6neigh_svc.sh x
 file /etc/init.d/ip6neigh etc/init.d/ip6neigh x
 file /etc/hotplug.d/iface/30-ip6neigh etc/hotplug.d/iface/30-ip6neigh x
