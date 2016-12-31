@@ -43,6 +43,7 @@ IPv6 addresses are difficult to remember. DNS provides an abstraction layer, so 
 	Installer script is up to date.
 
 	Creating directory /usr/share/ip6neigh/
+	Downloading ip6neigh_setup.sh
 	Downloading main/ip6neigh_svc.sh
 	Downloading etc/init.d/ip6neigh
 	Downloading etc/hotplug.d/iface/30-ip6neigh
@@ -104,6 +105,7 @@ ip6neigh can be uninstalled by using the `remove` parameter to the installer:
 	Removing /usr/bin/ip6neigh_ddns.sh
 	Removing /usr/bin/ip6neigh_host_show.sh
 	Removing /usr/bin/ip6neigh_oui_download.sh
+	Removing /usr/bin/ip6neigh_setup.sh
 	Removing /usr/sbin/ip6neigh_svc.sh
 	Removing directory tree /usr/share/ip6neigh/
 
