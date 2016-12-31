@@ -187,7 +187,7 @@ install() {
 
 #Uninstallation routine
 uninstall() {
-	[ -d "$SHARE_DIR" ] || errormsg "ip6neigh is not installed in this system."
+	[ -d "$SHARE_DIR" ] || errormsg "ip6neigh is not installed on this system."
 	
 	#Check if ip6neigh is running
 	pgrep -f ip6neigh_mon.sh >/dev/null
@@ -223,9 +223,22 @@ uninstall() {
 	fi
 }
 
+#Help text
+display_help() {
+	echo "ip6neigh Installer Script"
+	echo -e
+	echo "usage: $1 command"
+	echo -e
+	echo "where command is one of:"
+	echo -e
+	echo -e "\tinstall\t\tInstall ip6neigh"
+	echo -e "\tremove\t\tRemove ip6neigh from the system"
+	echo -e
+}
+
 #Check input parameters
 case "$1" in
-	"-r"|"remove"|"uninstall") uninstall;;
-	"") install;;
-	*) errormsg "Invalid parameter: $1"
+	"install") install;;
+	"remove") uninstall;;
+	*) display_help "$0"
 esac

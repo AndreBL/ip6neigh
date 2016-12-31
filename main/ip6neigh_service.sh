@@ -20,6 +20,17 @@
 . /lib/functions.sh
 . /lib/functions/network.sh
 
+#Check if the user is trying to run this script on its own
+if [ "$1" != "-s" ]; then
+	echo "ip6neigh Service Script"
+	echo -e
+	echo "This script is intended to be run only by its init script /etc/init.d/ip6neigh."
+	echo "If you want to start ip6neigh, type:"
+	echo -e
+	echo "/etc/init.d/ip6neigh start"
+	echo -e
+fi
+
 #Program definitions
 readonly CONFIG_FILE="/etc/config/ip6neigh"
 readonly HOSTS_FILE="/tmp/hosts/ip6neigh"
