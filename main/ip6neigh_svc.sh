@@ -764,11 +764,11 @@ ping6 -q -W 1 -c 3 -s 0 -I "$LAN_DEV" ff02::1 >/dev/null 2>/dev/null
 [ -n "$gua_address" ] && ping6 -q -W 1 -c 3 -s 0 -I "$gua_address" ff02::1 >/dev/null 2>/dev/null
 
 #Trap service stop
-terminate() {
-	logmsg "Terminating service script."
-	exit 0
-}
-trap terminate HUP INT TERM
+#terminate() {
+#	logmsg "Terminating service script."
+#	exit 0
+#}
+#trap terminate HUP INT TERM
 
 #Infinite main loop. Keeps monitoring changes in IPv6 neighbor's reachability status and call process() routine.
 ip -6 monitor neigh dev "$LAN_DEV" |
