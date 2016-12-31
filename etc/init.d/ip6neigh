@@ -2,7 +2,9 @@
 
 START=96
 
-readonly SERVICE_FILE="/usr/bin/ip6neigh_service.sh"
+readonly BIN_PATH="/usr/bin/"
+readonly SERVICE_NAME="ip6neigh_service.sh"
+readonly SERVICE_SCRIPT="${BIN_PATH}${SERVICE_NAME}"
 
 errormsg() {
 	local msg="Error: $1"
@@ -12,18 +14,18 @@ errormsg() {
 }
 
 start() {
-	pgrep -f ip6neigh_mon.sh >/dev/null && return 0
+	pgrep -f "$SERVICE_NAME" >/dev/null && return 0
 	
-	[ -f "$SERVICE_FILE" ] || errormsg "The main script file $SERVICE_FILE is missing."
+	[ -f "$SERVICE_SCRIPT" ] || errormsg "The main script file $SERVICE_SCRIPT is missing."
 
 	SERVICE_DAEMONIZE=1
-	service_start "$SERVICE_FILE" -s
+	service_start "$SERVICE_SCRIPT" -s
 
 	return 0
 }
 
 stop() {
-	killall ip6neigh_mon.sh 2>/dev/null
+	killall "$SERVICE_NAME" 2>/dev/null
 	return 0
 }
 
