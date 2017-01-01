@@ -149,13 +149,21 @@ It is possible to see the host file via the LuCI web interface by using luci-app
 
 	```
 	# ip6neigh_host_show.sh 
-	#Predefined                              SLAAC addresses
-	fe80::224:a5ff:fed7:3088                 Router.LL.lan 
-	2001:470:ebbd:4::1                       Router 
+	#Predefined hosts
+	Router                         2001:470:ebbd:4::1 
+	Router.LL.lan                  fe80::224:a5ff:fed7:3088 
 
-	#Discovered                              IPv6 neighbors
-	fe80::5048:e4ff:fe4d:a27d                alarm.LL.lan 
-	2001:470:ebbd:4:5048:e4ff:fe4d:a27d      alarm 
+	#Discovered hosts
+	Speed-9BA                      2001:470:ebbd:4:213:3bff:fe99:19ba 
+	Speed-9BA.LL.lan               fe80::213:3bff:fe99:19ba 
+	Speed-9BA.TMP.lan              2001:470:ebbd:4:b5e3:1def:443b:f7b9 
+	alarm                          2001:470:ebbd:4:5048:e4ff:fe4d:a27d 
+	alarm.LL.lan                   fe80::5048:e4ff:fe4d:a27d 
+	alarm.TMP.lan                  2001:470:ebbd:4:614b:2c7:27af:6713 
+	hau                            2001:470:ebbd:4:d69a:20ff:fe01:e0a4 
+	hau.LL.lan                     fe80::d69a:20ff:fe01:e0a4 
+	hau.TMP.lan                    2001:470:ebbd:4::46f 
+
 	```
 	
 
