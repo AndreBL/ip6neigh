@@ -14,7 +14,7 @@
 #
 #	by André Lange	Dec 2016
 
-readonly SETUP_VER=1
+readonly SETUP_VER=2
 
 readonly BIN_DIR="/usr/bin/"
 readonly SBIN_DIR="/usr/sbin/"
@@ -39,7 +39,7 @@ file /etc/hotplug.d/iface/30-ip6neigh etc/hotplug.d/iface/30-ip6neigh x
 file ${TEMP_DIR}config etc/config/ip6neigh
 
 file ${BIN_DIR}ip6neigh_oui_download.sh extra/ip6neigh_oui_download.sh x
-file ${BIN_DIR}ip6neigh_host_show.sh extra/ip6neigh_host_show.sh x
+file ${BIN_DIR}ip6neigh_hosts_show.sh extra/ip6neigh_hosts_show.sh x
 file ${BIN_DIR}ip6neigh_ddns.sh extra/ip6neigh_ddns.sh x
 "
 

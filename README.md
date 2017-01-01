@@ -49,7 +49,7 @@ IPv6 addresses are difficult to remember. DNS provides an abstraction layer, so 
 	Downloading etc/hotplug.d/iface/30-ip6neigh
 	Downloading etc/config/ip6neigh
 	Downloading extra/ip6neigh_oui_download.sh
-	Downloading extra/ip6neigh_host_show.sh
+	Downloading extra/ip6neigh_hosts_show.sh
 	Downloading extra/ip6neigh_ddns.sh
 
 	Not overwriting existing config file /etc/config/ip6neigh.
@@ -103,7 +103,7 @@ Removing etc/hotplug.d/iface/30-ip6neigh
 Removing /etc/init.d/ip6neigh
 Removing etc/init.d/ip6neigh
 Removing /usr/bin/ip6neigh_ddns.sh
-Removing /usr/bin/ip6neigh_host_show.sh
+Removing /usr/bin/ip6neigh_hosts_show.sh
 Removing /usr/bin/ip6neigh_oui_download.sh
 Removing /usr/bin/ip6neigh_setup.sh
 Removing /usr/sbin/ip6neigh_svc.sh
@@ -130,7 +130,7 @@ It is possible to see the host file via the LuCI web interface by using luci-app
 	#ip6neigh commands
 	config command
         	option name 'IPv6 Neighbors'
-        	option command 'ip6neigh_host_show.sh'
+        	option command 'ip6neigh_hosts_show.sh'
 
 	config command
         	option name 'ip6neigh log'
