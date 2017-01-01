@@ -148,7 +148,7 @@ It is possible to see the host file via the LuCI web interface by using luci-app
 5. Or run from CLI
 
 	```
-	# ip6neigh_host_show.sh 
+	# ip6neigh_hosts_show.sh 
 	#Predefined hosts
 	Router                         2001:470:ebbd:4::1 
 	Router.LL.lan                  fe80::224:a5ff:fed7:3088 
@@ -220,7 +220,7 @@ Tue Dec 27 01:32:20 UTC 2016 Probing other possible addresses for hau: fe80::d69
 To list the hostnames detected by **ip6neigh**.
 
 ```
-# ip6neigh_host_show.sh
+# ip6neigh_hosts_show.sh
 #Predefined                              SLAAC addresses
 fe80::224:a5ff:fed7:3088                 Router.LL.lan 
 2001:470:ebbd:4::1                       Router 
