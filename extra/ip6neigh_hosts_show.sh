@@ -19,8 +19,6 @@
 readonly HOSTS_FILE="/tmp/hosts/ip6neigh"
 readonly SERVICE_NAME="ip6neigh_svc.sh"
 
-ln=$(grep -n '^#Discovered' "$HOSTS_FILE" | cut -d ':' -f1)
-
 #Check if received valid arguments
 if [ -n "$1" ]; then
 	case "$1" in
@@ -47,6 +45,9 @@ fi
 if ! pgrep -f "$SERVICE_NAME" >/dev/null; then
 	echo "#SERVICE SCRIPT IS NOT RUNNING. THE INFORMATION MAY BE OUTDATED."
 fi
+
+#Get the line number that divides the two sections of the hosts file
+ln=$(grep -n '^#Discovered' "$HOSTS_FILE" | cut -d ':' -f1)
 
 #Check if allowed to show predefined hosts
 if [ "$1" != "-d" ]; then
