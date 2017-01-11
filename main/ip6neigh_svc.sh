@@ -205,7 +205,7 @@ add_probe() {
 	local addr="$1"
 	
 	#Do not add if the address already exist in some hosts file.
-	grep -q "^$addr " /tmp/hosts/* && return 0
+	grep -q "^$addr[ ,"$'\t'"]" /tmp/hosts/* && return 0
 	
 	#Adds to the list
 	probe_list="${probe_list} ${addr}"
@@ -433,7 +433,7 @@ get_name() {
 	local matched
 	
 	#Check if the address already exists
-	matched=$(grep -m 1 "^$addr " /tmp/hosts/*)
+	matched=$(grep -m 1 "^$addr[ ,"$'\t'"]" /tmp/hosts/*)
 	
 	#Address is new? (not found)
 	[ "$?" != 0 ] && return 3
