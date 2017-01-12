@@ -595,8 +595,10 @@ process() {
 #Adds static entry to hosts file
 add_static() {
 	local name="$1"
-	local addr="$2"
-	local scope="$3"
+	local mac="$2"
+	local addr="$3"
+	local scope="$4"
+	local perm="$5"
 	local suffix=""
 
 	#Decides which suffix should be added to the name.
@@ -614,25 +616,32 @@ add_static() {
 	#Writes the entry to the file
 	echo "${addr} ${name}${suffix}" >> "$HOSTS_FILE"
 	
+	#Adds a permanent entry in the neighbors table if requested to do so.
+	[ "$perm" = 1 ] && ip -6 neigh replace "$addr" lladdr "$mac" dev "$LAN_DEV" nud perm
+	
 	return 0
 }
 
 #Process entry in /etc/config/dhcp
 config_host() {
+	#Load basic options
 	local name
 	local mac
-	local duid
-	local slaac
-
 	config_get name "$1" name
 	config_get mac "$1" mac
-	config_get duid "$1" duid
-	config_get slaac "$1" slaac "0"
 	
-	#Ignore entry if the required options are missing.
+	#Ignore entry if the minimum required options are missing.
 	if [ -z "$name" ] || [ -z "$mac" ]; then
 		return 0;
 	fi
+	
+	#Load more options
+	local duid
+	local slaac
+	local perm
+	config_get duid "$1" duid
+	config_get slaac "$1" slaac "0"
+	config_get_bool perm "$1" perm 0
 	
 	#Converts user typed MAC to lowercase
 	mac=$(echo "$mac" | awk '{print tolower($0)}')
@@ -678,14 +687,15 @@ config_host() {
 	logmsg "Generating predefined SLAAC addresses for $name"
 
 	#Creates hosts file entries with link-local, ULA and GUA prefixes with corresponding IIDs.
+	local addr
 	if [ -n "$ll_iid" ] && [ "$ll_iid" != "0" ]; then
-		add_static "$name" "fe80::${ll_iid}" 0
+		add_static "$name" "$mac" "fe80::${ll_iid}" 0 "$perm"
 	fi
 	if [ -n "$ula_prefix" ] && [ -n "$ula_iid" ] && [ "$ula_iid" != "0" ]; then
-		add_static "$name" "${ula_prefix}:${ula_iid}" 1
+		add_static "$name" "$mac" "${ula_prefix}:${ula_iid}" 1 "$perm"
 	fi
 	if [ -n "$gua_prefix" ] && [ -n "$gua_iid" ] && [ "$gua_iid" != "0" ]; then
-		add_static "$name" "${gua_prefix}:${gua_iid}" 2
+		add_static "$name" "$mac" "${gua_prefix}:${gua_iid}" 2 "$perm"
 	fi
 }
 
@@ -761,11 +771,18 @@ echo "#Discovered IPv6 neighbors" >> "$HOSTS_FILE"
 #Send signal to dnsmasq to reload hosts files.
 killall -1 dnsmasq
 
-#Flushes the neighbors cache and pings "all nodes" multicast address with source addresses from various scopes to speedup discovery.
-ip -6 neigh flush dev "$LAN_DEV"
+#Pings "all nodes" multicast address with source addresses from various scopes to speedup discovery.
 ping6 -q -W 1 -c 3 -s 0 -I "$LAN_DEV" ff02::1 >/dev/null 2>/dev/null
 [ -n "$ula_address" ] && ping6 -q -W 1 -c 3 -s 0 -I "$ula_address" ff02::1 >/dev/null 2>/dev/null
 [ -n "$gua_address" ] && ping6 -q -W 1 -c 3 -s 0 -I "$gua_address" ff02::1 >/dev/null 2>/dev/null
+
+#Get current IPv6 neighbors and call process() routine for those that are in a REACHABLE state.
+logmsg "Populating hosts file with reachable neighbors..."
+ip -6 neigh show dev "$LAN_DEV" nud reachable |
+	while IFS= read -r line
+	do
+		process $line
+	done
 
 #Trap service stop
 #terminate() {
@@ -774,7 +791,8 @@ ping6 -q -W 1 -c 3 -s 0 -I "$LAN_DEV" ff02::1 >/dev/null 2>/dev/null
 #}
 #trap terminate HUP INT TERM
 
-#Infinite main loop. Keeps monitoring changes in IPv6 neighbor's reachability status and call process() routine.
+#Infinite main loop. Keeps monitoring changes in IPv6 neighbors reachability status and call process() routine.
+logmsg "Monitoring changes in the neighbor's table..."
 ip -6 monitor neigh dev "$LAN_DEV" |
 	while IFS= read -r line
 	do
