@@ -61,12 +61,14 @@ config_get LL_LABEL config ll_label LL
 config_get ULA_label config ula_label
 config_get gua_label config gua_label
 config_get TMP_LABEL config tmp_label TMP
+config_get URT_LABEL config unrouted_label UNROUTED
 config_get_bool DHCPV6_NAMES config dhcpv6_names 1
 config_get_bool DHCPV4_NAMES config dhcpv4_names 1
 config_get_bool MANUF_NAMES config manuf_names 1
 config_get PROBE_EUI64 config probe_eui64 1
 config_get_bool PROBE_IID config probe_iid 1
 config_get_bool LOAD_STATIC config load_static 1
+config_get_bool LOAD_STALE config load_stale 1
 config_get FW_SCRIPT config fw_script
 config_get LOG config log 0
 
@@ -463,9 +465,9 @@ process() {
 	local mac="$3"
 	local status
 
-	#Ignore STALE events
+	#Ignore STALE events if not allowed to process them.
 	for status; do true; done
-	[ "$status" != "STALE" ] || return 0
+	[ "$status" != "STALE" ] || [ "$load_stale" -gt 0 ] || return 0
 
 	#Get current host entry info.
 	local name
@@ -491,9 +493,9 @@ process() {
 		
 			return 0
 		;;
-
-		#Neighbor is reachable. Must be processed.
-		"REACHABLE"|"PERMANENT")
+		
+		#Neighbor is reachable os stale. Must be processed.
+		"REACHABLE"|"STALE"|"PERMANENT")
 			#Decide what to do based on type.
 			case "$type" in
 				#Address already has a stable name. Nothing to be done.
@@ -538,6 +540,9 @@ process() {
 					fi
 				;;
 			esac
+			
+			#Get the /64 prefix
+			local prefix=$(echo "$addr" | cut -d ':' -f1-4)
 
 			#Check address scope and assign proper labels.
 			local suffix=""
@@ -548,7 +553,7 @@ process() {
 				
 				#Sets scope ID to LL
 				scope=0
-			elif [ "${addr:0:2}" = "fd" ]; then
+			elif [ "$prefix" = "$ula_prefix" ]; then
 				#Is ULA. Append corresponding label.
 				suffix="${ULA_LABEL}"
 				
@@ -560,7 +565,7 @@ process() {
 
 				#Sets scope ID to ULA
 				scope=1
-			else
+			elif [ "$prefix" = "$gua_prefix" ]; then
 				#The address is globally unique. Append corresponding label.
 				suffix="${GUA_LABEL}"
 
@@ -572,6 +577,12 @@ process() {
 
 				#Sets scope ID to GUA
 				scope=2
+			else
+				#The address uses a prefix that is not routed to this LAN.
+				suffix="$URT_LABEL"
+				
+				#Sets scope ID to unrouted.
+				scope=3
 			fi
 
 			#Cat strings to generate output name
@@ -593,8 +604,8 @@ process() {
 				logmsg "Changed NUD state to permanent for ${hostsname}."
 			fi
 			
-			#Probe other addresses related to this one
-			probe_addresses "$name" "$addr" "$mac" "$scope"
+			#Probe other addresses related to this one if not unrouted.
+			[ "$scope" != 3 ] && probe_addresses "$name" "$addr" "$mac" "$scope"
 		;;
 	esac
 	
@@ -764,6 +775,7 @@ if [ -n "$LL_LABEL" ]; then LL_LABEL=".${LL_LABEL}" ; fi
 if [ -n "$ULA_LABEL" ]; then ULA_LABEL=".${ULA_LABEL}" ; fi
 if [ -n "$GUA_LABEL" ]; then GUA_LABEL=".${GUA_LABEL}" ; fi
 if [ -n "$TMP_LABEL" ]; then TMP_LABEL=".${TMP_LABEL}" ; fi
+if [ -n "$URT_LABEL" ]; then URT_LABEL=".${URT_LABEL}" ; fi
 
 #Clears the cache file
 > "$CACHE_FILE"
@@ -798,9 +810,10 @@ ping6 -q -W 1 -c 3 -s 0 -I "$LAN_DEV" ff02::1 >/dev/null 2>/dev/null
 [ -n "$ula_address" ] && ping6 -q -W 1 -c 3 -s 0 -I "$ula_address" ff02::1 >/dev/null 2>/dev/null
 [ -n "$gua_address" ] && ping6 -q -W 1 -c 3 -s 0 -I "$gua_address" ff02::1 >/dev/null 2>/dev/null
 
-#Get current IPv6 neighbors and call process() routine for those that are in a REACHABLE state.
+#Get current IPv6 neighbors and call process() routine.
 logmsg "Syncing hosts file with neighbors table..."
-ip -6 neigh show dev "$LAN_DEV" | grep -E 'REACHABLE$|STALE$|PERMANENT$' |
+load_stale="$LOAD_STALE"
+ip -6 neigh show dev "$LAN_DEV" | grep -E 'REACHABLE$|[0-9,a-f] STALE$|PERMANENT$' |
 	while IFS= read -r line
 	do
 		process $line
@@ -821,6 +834,7 @@ fi
 
 #Infinite main loop. Keeps monitoring changes in IPv6 neighbor's reachability status and call process() routine.
 logmsg "Monitoring changes in the neighbor's table..."
+load_stale=0
 ip -6 monitor neigh dev "$LAN_DEV" |
 	while IFS= read -r line
 	do
