@@ -55,4 +55,5 @@ config host
 	option name		'Lollipop'
 	#Copy the MAC address of the device.
 	option mac		'4a:b9:b0:09:10:8b'
+	option slaac	'1'
 	option perm		'2'
