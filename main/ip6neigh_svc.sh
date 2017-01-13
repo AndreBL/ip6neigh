@@ -813,7 +813,8 @@ ping6 -q -W 1 -c 3 -s 0 -I "$LAN_DEV" ff02::1 >/dev/null 2>/dev/null
 #Get current IPv6 neighbors and call process() routine.
 logmsg "Syncing hosts file with neighbors table..."
 load_stale="$LOAD_STALE"
-ip -6 neigh show dev "$LAN_DEV" | grep -E 'REACHABLE$|[0-9,a-f] STALE$|PERMANENT$' |
+ip -6 neigh show dev "$LAN_DEV" |
+	grep -E 'REACHABLE$|[0-9,a-f] STALE$|PERMANENT$' | sort -r |
 	while IFS= read -r line
 	do
 		process $line

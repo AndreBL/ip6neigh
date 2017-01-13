@@ -66,10 +66,16 @@ config ip6neigh 'config'
 	# 0=disabled, 1=enabled. Default: '1'
 	#option load_static	'0'
 	
+	# Enable loading of stale neighbors from the neighbors table on startup. If
+	# disabled, only reachable and permanent neighbors will be loaded on startup.
+	# 0=disabled, 1=enabled. Default: '1'
+	#option load_stale	'0'
+	
 	# User firewall script file. If defined, ip6neigh will call this script upon
 	# start, after populating the hosts file with predefined hosts from
 	# /etc/config/dhcp. Useful for creating firewall rules for global addresses
-	# with dynamic prefix.
+	# with dynamic prefix. The arguments passed to the script are:
+	# domain_name LAN_device WAN_device ULA_address ULA_prefix GUA_address GUA_prefix
 	#option fw_script		'/root/ip6_firewall.sh'
 
 	# Enable logging of debug messages. Options are '0' for disabled,

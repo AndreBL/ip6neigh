@@ -50,7 +50,7 @@ config host
 
 # Workaround solution for crappy Android 5 (Lollipop) devices that are known to
 # have a bug in their NDP protocol that slows down the web browser response in
-# dual-stack WiFi networks. This is under test and is not guarranteed to work.
+# dual-stack WiFi networks. This is experimental.
 config host
 	option name		'Lollipop'
 	#Copy the MAC address of the device.
