@@ -1,13 +1,32 @@
 #!/bin/sh
 
-[ "$ACTION" = "ifup" ] || exit 0
 /etc/init.d/ip6neigh enabled || exit 0
 
-lan_iface=$(uci get ip6neigh.config.lan_iface 2>/dev/null)
-if [ -z "$lan_iface" ]; then lan_iface="lan"; fi
+lan=$(uci get ip6neigh.config.lan_iface 2>/dev/null)
+if [ -z "$lan" ]; then lan="lan"; fi
 
-wan_iface=$(uci get ip6neigh.config.wan_iface 2>/dev/null)
-if [ -z "$wan_iface" ]; then wan_iface="wan6"; fi
+wan=$(uci get ip6neigh.config.wan_iface 2>/dev/null)
+if [ -z "$wan" ]; then wan="wan6"; fi
 
-[ "$INTERFACE" = "$lan_iface" ] || [ "$INTERFACE" = "$wan_iface" ] || exit 0
-/etc/init.d/ip6neigh restart
+[ "$INTERFACE" = "$lan" ] || [ "$INTERFACE" = "$wan" ] || exit 0
+
+. /lib/functions/network.sh
+
+case "$INTERFACE $ACTION" in
+	"$lan ifup"|"$wan ifup") /etc/init.d/ip6neigh restart ;;
+	"$wan ifdown")
+		lan_wipe=$(uci get ip6neigh.config.lan_wipe 2>/dev/null)
+		[ "$lan_wipe" = '1' ] || exit 0
+
+		network_get_physdev LAN_DEV "$lan"
+		[ -n "$LAN_DEV" ] || exit 0
+
+		ip -6 neigh flush 2000::/3 dev "$LAN_DEV" nud perm
+		ip -6 neigh flush 2000::/3 dev "$LAN_DEV"
+		
+		list=$(ip -6 addr show dev "$LAN_DEV" scope global 2>/dev/null | grep inet6 | awk '{print $2}' | grep -v '^fd')
+		for cidr in $list; do
+			ip -6 addr del $cidr dev "$LAN_DEV"
+		done
+	;;
+esac

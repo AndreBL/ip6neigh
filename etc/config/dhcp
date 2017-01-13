@@ -13,6 +13,10 @@
 # ll_iid	Override slaac IID for link-local address
 # ula_iid	Override slaac IID for ULA address
 # gua_iid	Override slaac IID for GUA address
+# perm		Adds the host to the neighbors table with NUD state permanent.
+#			Will also apply to the host's DHCP IPv4 address.
+#			0=disabled, 1=enabled for predefined addresses, 2=enabled for
+#			predefined and any discovered addresses associated with this MAC.
 	
 
 # Devices that use EUI-64 interface identifiers (IIDs) for all scopes:
@@ -32,3 +36,23 @@ config host
 	#Copy the interface identifier from the link-local address of
 	#of the device.
 	option slaac	'daa1:4554:747b:1f50'
+
+# Creates IPv6 broadcast-like addresses for routing Wake-on-LAN packets from
+# the internet to the LAN network over IPv6. Needs proper firewall rules to
+# secure against possible attacks. Use with caution.
+config host
+	option name		'WoL'
+	option ip		'192.168.0.254'
+	option mac		'ff:ff:ff:ff:ff:ff'
+	option dns		'1'
+	option slaac	'ffff:ffff:ffff:ffff'
+	option perm		'1'
+
+# Workaround solution for crappy Android 5 (Lollipop) devices that are known to
+# have a bug in their NDP protocol that slows down the web browser response in
+# dual-stack WiFi networks. This is under test and is not guarranteed to work.
+config host
+	option name		'Lollipop'
+	#Copy the MAC address of the device.
+	option mac		'4a:b9:b0:09:10:8b'
+	option perm		'2'

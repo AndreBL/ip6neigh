@@ -54,6 +54,7 @@ errormsg() {
 reset_cb
 config_load ip6neigh
 config_get LAN_IFACE config lan_iface lan
+config_get WAN_IFACE config wan_iface wan6
 config_get DOMAIN config domain
 config_get ROUTER_NAME config router_name Router
 config_get LL_LABEL config ll_label LL
@@ -66,11 +67,13 @@ config_get_bool MANUF_NAMES config manuf_names 1
 config_get PROBE_EUI64 config probe_eui64 1
 config_get_bool PROBE_IID config probe_iid 1
 config_get_bool LOAD_STATIC config load_static 1
+config_get FW_SCRIPT config fw_script
 config_get LOG config log 0
 
-#Gets the physical device
+#Gets the physical devices
 network_get_physdev LAN_DEV "$LAN_IFACE"
 [ -n "$LAN_DEV" ] || errormsg "Could not get the name of the physical device for network interface ${LAN_IFACE}."
+network_get_physdev WAN_DEV "$WAN_IFACE"
 
 #Gets DNS domain from /etc/config/dhcp if not defined in ip6neigh config. Defaults to 'lan'.
 if [ -z "$DOMAIN" ]; then
@@ -114,12 +117,12 @@ add_cache() {
 	return 0
 }
 
-#Removes entry from the cache file if has a dynamic type.
+#Removes entry from the cache file if it has a dynamic type.
 remove_cache() {
 	local name="$1"
-	grep -q "1 ${name}$" "$CACHE_FILE" || return 0
+	grep -q "0. ${name}$" "$CACHE_FILE" || return 0
 	#Must save changes to another temp file and then move it over the main file.
-	grep -v "1 ${name}$" "$CACHE_FILE" > "$TEMP_FILE"
+	grep -v "0. ${name}$" "$CACHE_FILE" > "$TEMP_FILE"
 	mv "$TEMP_FILE" "$CACHE_FILE"
 
 	logmsg "Removed cached entry: $name"
@@ -136,7 +139,7 @@ rename() {
 	mv "$TEMP_FILE" "$HOSTS_FILE"
 	
 	#Deletes the old cached entry if dynamic.
-	grep -v "1 ${oldname}$" "$CACHE_FILE" > "$TEMP_FILE"
+	grep -v "0. ${oldname}$" "$CACHE_FILE" > "$TEMP_FILE"
 	mv "$TEMP_FILE" "$CACHE_FILE"
 
 	logmsg "Renamed host: $oldname to $newname"
@@ -292,7 +295,7 @@ dhcp_name() {
 		
 		#Success getting name from DHCPv6.
 		if [ -n "$dname" ]; then
-			add_cache "$mac" "$dname" 61
+			add_cache "$mac" "$dname" '06'
 			eval "$1='$dname'"
 			return 0
 		fi
@@ -304,7 +307,7 @@ dhcp_name() {
 		
 		#Success getting name from DHCPv4.
 		if [ -n "$dname" ]; then
-			add_cache "$mac" "$dname" 41
+			add_cache "$mac" "$dname" '04'
 			eval "$1='$dname'"
 			return 0
 		fi
@@ -377,8 +380,8 @@ manuf_name() {
 		logmsg "Name conflict for ${mac}. Trying ${mname}"
 	done
 	
-	#Writes entry to the cache with type 11.
-	add_cache "$mac" "$mname" 11
+	#Writes entry to the cache with type 01.
+	add_cache "$mac" "$mname" '01'
  	
 	#Returns the newly created name.
 	eval "$1='$mname'"
@@ -399,7 +402,7 @@ create_name() {
 		local type=$(echo "$lease" | cut -d ' ' -f2)
 		
 		#Check if the cached entry can be used in this call.
-		if [ "$acceptmanuf" -gt 0 ] || [ "$type" != 11 ]; then
+		if [ "$acceptmanuf" -gt 0 ] || [ "$type" != '01' ]; then
 			#Get name and use it.
 			cname=$(echo "$lease" | cut -d ' ' -f3)
 			logmsg "Using cached name for ${mac}: ${cname}"
@@ -439,12 +442,12 @@ get_name() {
 	[ "$?" != 0 ] && return 3
 	
 	#Check what kind of name it has
-	local gname=$(echo "$matched" | cut -d ' ' -f2)
+	local gname=$(echo "$matched" | tr $'\t' ' ' | cut -d ' ' -f2)
 	local fname=$(echo "$gname" | cut -d '.' -f1)
 	eval "$1='$fname'"
 	
 	#Manufacturer name?
-	grep -q " 11 ${fname}$" "$CACHE_FILE" && return 2
+	grep -q "01 ${fname}$" "$CACHE_FILE" && return 2
 
 	#Temporary name?
 	echo "$gname" | grep -q "^[^\.]*${TMP_LABEL}\."
@@ -475,7 +478,7 @@ process() {
 		#Neighbor is unreachable. Must be removed if it is not a predefined host from /etc/config/dhcp.
 		"FAILED")
 			#If this is a predefined host, do nothing.
-			[ "$type" = 0 ] && grep -q "0 ${currname}$" "$CACHE_FILE" && return 0
+			[ "$type" = 0 ] && grep -q "[^0]. ${currname}$" "$CACHE_FILE" && return 0
 			
 			#Remove the host entry.
 			remove "$addr"
@@ -490,7 +493,7 @@ process() {
 		;;
 
 		#Neighbor is reachable. Must be processed.
-		"REACHABLE")
+		"REACHABLE"|"PERMANENT")
 			#Decide what to do based on type.
 			case "$type" in
 				#Address already has a stable name. Nothing to be done.
@@ -584,6 +587,12 @@ process() {
 			#Adds entry to hosts file
 			add "$hostsname" "$addr"
 			
+			#Checks if this host must have nud perm for all addresses.
+			if grep -q "30 ${name}$" "$CACHE_FILE"; then
+				ip -6 neigh replace "$addr" lladdr "$mac" dev "$LAN_DEV" nud perm
+				logmsg "Changed NUD state to permanent for ${hostsname}."
+			fi
+			
 			#Probe other addresses related to this one
 			probe_addresses "$name" "$addr" "$mac" "$scope"
 		;;
@@ -617,7 +626,7 @@ add_static() {
 	echo "${addr} ${name}${suffix}" >> "$HOSTS_FILE"
 	
 	#Adds a permanent entry in the neighbors table if requested to do so.
-	[ "$perm" = 1 ] && ip -6 neigh replace "$addr" lladdr "$mac" dev "$LAN_DEV" nud perm
+	[ "$perm" -gt 0 ] && ip -6 neigh replace "$addr" lladdr "$mac" dev "$LAN_DEV" nud perm
 	
 	return 0
 }
@@ -636,26 +645,32 @@ config_host() {
 	fi
 	
 	#Load more options
+	local ip
 	local duid
 	local slaac
 	local perm
+	config_get ip "$1" ip
 	config_get duid "$1" duid
 	config_get slaac "$1" slaac "0"
-	config_get_bool perm "$1" perm 0
+	config_get perm "$1" perm 0
 	
 	#Converts user typed MAC to lowercase
 	mac=$(echo "$mac" | awk '{print tolower($0)}')
 	
 	#Populate cache with name, depending on supplied options.
 	if [ "$LOAD_STATIC" -gt 0 ] && [ "$slaac" != "0" ]; then
-		#Adds the name to the cache with type 20
-		add_cache "$mac" "$name" 20
+		#Decides the first digit of type value.
+		local type
+		case "$perm" in
+			0) type='1';;
+			1) type='2';;
+			2) type='3';;
+		esac
+		add_cache "$mac" "$name" "${type}0"
 	elif [ "$DHCPV6_NAMES" -gt 0 ] && [ -n "$duid" ]; then
-		#Adds the name to the cache with type 60
-		add_cache "$mac" "$name" 60
+		add_cache "$mac" "$name" '16'
 	elif [ "$DHCPV4_NAMES" -gt 0 ]; then
-		#Adds the name to the cache with type 40
-		add_cache "$mac" "$name" 40
+		add_cache "$mac" "$name" '14'
 	fi
 
 	#Nothing else to be done if not configured for loading static leases
@@ -663,6 +678,15 @@ config_host() {
 	[ "$LOAD_STATIC" -gt 0 ] || return 0
 	if [ -z "$slaac" ] || [ "$slaac" = "0" ]; then
 		return 0
+	fi
+	
+	#Checks if requested to permanent entries to neighbors table
+	if [ "$perm" -gt 0 ]; then
+		#Adds permanent entry to IPv4 neighbors table if and IPv4 address was specified.
+		[ -n "$ip" ] && ip -4 neigh replace "$ip" lladdr "$mac" dev "$LAN_DEV" nud perm
+		logmsg "Generating predefined SLAAC addresses with NUD state permanent for $name"
+	else
+		logmsg "Generating predefined SLAAC addresses for $name"
 	fi
 
 	#slaac option is enabled. Check if it contains a custom IID.
@@ -683,8 +707,6 @@ config_host() {
 	config_get ll_iid "$1" ll_iid "$iid"
 	config_get ula_iid "$1" ula_iid "$iid"
 	config_get gua_iid "$1" gua_iid "$iid"
-	
-	logmsg "Generating predefined SLAAC addresses for $name"
 
 	#Creates hosts file entries with link-local, ULA and GUA prefixes with corresponding IIDs.
 	local addr
@@ -777,12 +799,18 @@ ping6 -q -W 1 -c 3 -s 0 -I "$LAN_DEV" ff02::1 >/dev/null 2>/dev/null
 [ -n "$gua_address" ] && ping6 -q -W 1 -c 3 -s 0 -I "$gua_address" ff02::1 >/dev/null 2>/dev/null
 
 #Get current IPv6 neighbors and call process() routine for those that are in a REACHABLE state.
-logmsg "Populating hosts file with reachable neighbors..."
-ip -6 neigh show dev "$LAN_DEV" nud reachable |
+logmsg "Syncing hosts file with neighbors table..."
+ip -6 neigh show dev "$LAN_DEV" | grep -E 'REACHABLE$|STALE$|PERMANENT$' |
 	while IFS= read -r line
 	do
 		process $line
 	done
+	
+#Check if there's a custom script to be runned.
+if [ -n "$FW_SCRIPT" ] && [ -f "$FW_SCRIPT" ]; then
+	logmsg "Running user firewall script: $FW_SCRIPT '$DOMAIN' '$LAN_DEV' '$WAN_DEV' '$ula_address' '$ula_prefix' '$gua_address' '$gua_prefix'"
+	/bin/sh "$FW_SCRIPT" "$DOMAIN" "$LAN_DEV" "$WAN_DEV" "$ula_address" "$ula_prefix" "$gua_address" "$gua_prefix"
+fi
 
 #Trap service stop
 #terminate() {
@@ -791,7 +819,7 @@ ip -6 neigh show dev "$LAN_DEV" nud reachable |
 #}
 #trap terminate HUP INT TERM
 
-#Infinite main loop. Keeps monitoring changes in IPv6 neighbors reachability status and call process() routine.
+#Infinite main loop. Keeps monitoring changes in IPv6 neighbor's reachability status and call process() routine.
 logmsg "Monitoring changes in the neighbor's table..."
 ip -6 monitor neigh dev "$LAN_DEV" |
 	while IFS= read -r line

@@ -1,4 +1,5 @@
-#UCI example configuration file for ip6neigh script
+# UCI example configuration file for ip6neigh script
+# Default values will be assumed for options that are left undefined/commented out.
 
 config ip6neigh 'config'
 
@@ -7,6 +8,11 @@ config ip6neigh 'config'
 	
 	# IPv6 WAN interface logical name. Default: 'wan6'
 	#option wan_iface	'wan6'
+	
+	# Wipe global addresses from LAN interface when WAN goes down. Should be
+	# enabled if the ISP does prefix delegation with dynamic prefix.
+	# 0=disabled, 1=enabled. Default: '0'
+	#option lan_wipe		'1'
 	
 	# Top-level domain name for local hosts. Will load the option domain from
 	# /etc/config/dhcp if not specified here. Default: 'lan'
@@ -18,14 +24,14 @@ config ip6neigh 'config'
 	#option router_name	'Router'
 
 	# When a new neighbor is discovered, auto probe for other addresses based
-	# on MAC.
+	# on MAC address.
 	# 0=disabled, 1=all scopes, 2=same scope. Default: '1'
-	#option probe_eui64	'1'
+	#option probe_eui64	'0'
 
 	# When a new neighbor is discovered, auto probe for other addresses with
 	# the same interface identifier. 
 	# 0=disabled, 1=enabled. Default: '1'
-	#option probe_iid	'1'
+	#option probe_iid	'0'
 
 	# Label for link-local addresses. Default: 'LL'
 	#option ll_label	'LL'
@@ -34,8 +40,8 @@ config ip6neigh 'config'
 	#option ula_label	'ULA'
 
 	# Label for globally unique addresses (GUA).
-	# Defaults to 'PUB' if network has ULA prefix and no label if network
-	# network does not have ULA prefix.
+	# Defaults to 'PUB' if network has ULA prefix and no label if network does
+	# not have ULA prefix.
 	#option gua_label	'PUB'
 
 	# Secondary label for temporary (RFC 4941) address. Will also be applied
@@ -45,22 +51,28 @@ config ip6neigh 'config'
 
 	# Get names from DHCPv6 leases. 0=disabled, 1=enabled.
 	# Default: '1'
-	#option dhcpv6_names	'1'
+	#option dhcpv6_names	'0'
 	
 	# Get names from DHCPv4 leases. 0=disabled, 1=enabled.
 	# Default: '1'
-	#option dhcpv4_names	'1'
+	#option dhcpv4_names	'0'
 	
 	# Generate names based on the manufacturer of the device if DHCPv6/v4 names
 	# were not available. 0=disabled, 1=enabled.
 	# Default: '1'
-	#option manuf_names	'1'
+	#option manuf_names	'0'
 
 	# Enable loading of predefined static or MAC-based IIDs from /etc/config/dhcp.
 	# 0=disabled, 1=enabled. Default: '1'
-	#option load_static	'1'
+	#option load_static	'0'
+	
+	# User firewall script file. If defined, ip6neigh will call this script upon
+	# start, after populating the hosts file with predefined hosts from
+	# /etc/config/dhcp. Useful for creating firewall rules for global addresses
+	# with dynamic prefix.
+	#option fw_script		'/root/ip6_firewall.sh'
 
 	# Enable logging of debug messages. Options are '0' for disabled,
-	# '1' to use syslog or the file name if you want to log to a file instead.
+	# '1' to use syslog or 'file name' if you want to log to a file instead.
 	# Default: '0'
 	option log		'/tmp/log/ip6neigh.log'
