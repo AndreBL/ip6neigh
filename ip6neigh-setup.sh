@@ -59,9 +59,10 @@ Run the following command if you want to download an offline OUI lookup database
 
 	ip6neigh-oui-download.sh
 
-Start ip6neigh by running:
+Enable and start ip6neigh with:
 
-	/etc/init.d/ip6neigh start
+	ip6neigh enable
+	ip6neigh start
 "
 
 #Writes error message to stderr and exit program.
@@ -92,10 +93,9 @@ download_file() {
 check_running() {
 	pgrep -f "$SERVICE_NAME" >/dev/null
 	if [ "$?" = 0 ]; then
-		echo "Stopping ip6neigh..."
+		echo -e "\nStopping ip6neigh..."
 		killall "$SERVICE_NAME" 2>/dev/null
 		sleep 2
-		echo -e
 	fi
 }
 
@@ -206,6 +206,7 @@ install() {
 #Uninstallation routine
 uninstall() {
 	[ -d "$SHARE_DIR" ] || errormsg "ip6neigh is not installed on this system."
+	check_running
 	
 	#Remove hosts and cache files
 	uninstall_line file "$HOSTS_FILE"
