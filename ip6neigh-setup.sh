@@ -96,7 +96,9 @@ check_running() {
 		echo -e "\nStopping ip6neigh..."
 		killall "$SERVICE_NAME" 2>/dev/null
 		sleep 2
+		return 1
 	fi
+	return 0
 }
 
 #Processes each line of the install list
@@ -209,6 +211,7 @@ uninstall() {
 	check_running
 	
 	#Remove hosts and cache files
+	echo -e
 	uninstall_line file "$HOSTS_FILE"
 	uninstall_line file "$CACHE_FILE"
 	
