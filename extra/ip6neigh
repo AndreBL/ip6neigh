@@ -25,13 +25,16 @@ readonly SERVICE_NAME="ip6neigh-svc.sh"
 display_help() {
 	echo "ip6neigh Command Line Script"
 	echo -e
-	echo -e "Usage:\t$CMD\t{ start | restart|rst | stop }"
-	echo -e "\t$CMD\t{ enable | disable }"
-	echo -e "\t$CMD\tlist|lst\t[ all | sta[tic] | dis[covered] ]"
-	echo -e "\t$CMD\taddr[ess]\t{ NAME } [ 1 ]"
-	echo -e "\t$CMD\tname\t\t{ ADDRESS }"
-	echo -e "\t$CMD\tres[olve]\t{ ADDRESS | NAME } [ 1 ]"
-	echo -e "\t$CMD\twho[is|s]\t{ NAME | ADDRESS | MAC }"
+	echo -e "Usage: $CMD COMMAND ..."
+	echo -e
+	echo -e "Command list:"
+	echo -e "\t{ start | restart|rst | stop }"
+	echo -e "\t{ enable | disable }"
+	echo -e "\tlist|lst\t[ all | sta[tic] | dis[covered] ]"
+	echo -e "\taddr[ess]\t{ NAME } [ 1 ]"
+	echo -e "\tname\t\t{ ADDRESS }"
+	echo -e "\tres[olve]\t{ ADDRESS | NAME } [ 1 ]"
+	echo -e "\twho[is|s]\t{ NAME | ADDRESS | MAC }"
 	echo -e
 	exit 1
 }
@@ -187,7 +190,7 @@ resolve() {
 #Displays the simple name (no FQDN) for the address or all addresses for the simple name.
 whois_this() {
 	check_running
-	Check_files
+	check_files
 	
 	#Check if it's an address
 	echo "$1" | grep -q ':'
