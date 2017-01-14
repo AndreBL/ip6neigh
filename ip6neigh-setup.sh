@@ -14,7 +14,7 @@
 #
 #	by André Lange	Dec 2016
 
-readonly SETUP_VER=2
+readonly SETUP_VER=3
 
 readonly BIN_DIR="/usr/bin/"
 readonly SBIN_DIR="/usr/sbin/"
@@ -25,30 +25,29 @@ readonly CONFIG_FILE="/etc/config/ip6neigh"
 readonly HOSTS_FILE="/tmp/hosts/ip6neigh"
 readonly CACHE_FILE="/tmp/ip6neigh.cache"
 
-readonly SERVICE_NAME="ip6neigh_svc.sh"
+readonly SERVICE_NAME="ip6neigh-svc.sh"
 
 readonly REPO="https://raw.githubusercontent.com/AndreBL/ip6neigh/master/"
 
 #Installation list
 readonly inst_list="
 dir ${SHARE_DIR}
-file ${BIN_DIR}ip6neigh_setup.sh ip6neigh_setup.sh x
-file ${SBIN_DIR}ip6neigh_svc.sh main/ip6neigh_svc.sh x
+file ${BIN_DIR}ip6neigh-setup.sh ip6neigh-setup.sh x
+file ${SBIN_DIR}ip6neigh-svc.sh main/ip6neigh-svc.sh x
 file /etc/init.d/ip6neigh etc/init.d/ip6neigh x
 file /etc/hotplug.d/iface/30-ip6neigh etc/hotplug.d/iface/30-ip6neigh x
 file ${TEMP_DIR}config etc/config/ip6neigh
 
-file ${BIN_DIR}ip6neigh_oui_download.sh extra/ip6neigh_oui_download.sh x
-file ${BIN_DIR}ip6neigh_hosts_show.sh extra/ip6neigh_hosts_show.sh x
-file ${BIN_DIR}ip6neigh_ddns.sh extra/ip6neigh_ddns.sh x
+file ${BIN_DIR}ip6neigh extra/ip6neigh x
+file ${BIN_DIR}ip6neigh-oui-download.sh extra/ip6neigh-oui-download.sh x
 "
 
 #Uninstallation list
 readonly uninst_list="
-file /etc/hotplug.d/iface/30-ip6neigh etc/hotplug.d/iface/30-ip6neigh
-file /etc/init.d/ip6neigh etc/init.d/ip6neigh
-file ${BIN_DIR}ip6neigh_*.sh
-file ${SBIN_DIR}ip6neigh_*.sh
+file /etc/hotplug.d/iface/30-ip6neigh
+file /etc/init.d/ip6neigh
+file ${BIN_DIR}ip6neigh*
+file ${SBIN_DIR}ip6neigh*
 tree ${SHARE_DIR}
 "
 
@@ -58,7 +57,7 @@ readonly SUCCESS_MSG="
 
 Run the following command if you want to download an offline OUI lookup database:
 
-	ip6neigh_oui_download.sh
+	ip6neigh-oui-download.sh
 
 Start ip6neigh by running:
 
@@ -86,6 +85,17 @@ download_file() {
 
 	if ! curl -s -S -f -k -o "$dest" "$url"; then
 		errormsg "Could not download ${url}.\n\nFailed to complete installation."
+	fi
+}
+
+#Check if ip6neigh is running and kills it.
+check_running() {
+	pgrep -f "$SERVICE_NAME" >/dev/null
+	if [ "$?" = 0 ]; then
+		echo "Stopping ip6neigh..."
+		killall "$SERVICE_NAME" 2>/dev/null
+		sleep 2
+		echo -e
 	fi
 }
 
@@ -165,6 +175,7 @@ install() {
 	
 	#Check if already installed
 	[ -d "$SHARE_DIR" ] && echo -e "\n The existing installation of ip6neigh will be overwritten."
+	check_running
 	
 	#Process install list
 	echo -e
@@ -196,15 +207,6 @@ install() {
 uninstall() {
 	[ -d "$SHARE_DIR" ] || errormsg "ip6neigh is not installed on this system."
 	
-	#Check if ip6neigh is running
-	pgrep -f "$SERVICE_NAME" >/dev/null
-	if [ "$?" = 0 ]; then
-		echo "Stopping ip6neigh..."
-		/etc/init.d/ip6neigh stop
-		sleep 2
-		echo -e
-	fi
-	
 	#Remove hosts and cache files
 	uninstall_line file "$HOSTS_FILE"
 	uninstall_line file "$CACHE_FILE"
@@ -234,7 +236,7 @@ uninstall() {
 display_help() {
 	echo "ip6neigh Installer Script"
 	echo -e
-	echo "usage: $1 command"
+	echo "Usage: $1 command"
 	echo -e
 	echo "where command is one of:"
 	echo -e
