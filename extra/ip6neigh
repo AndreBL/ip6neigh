@@ -31,8 +31,8 @@ display_help() {
 	echo -e "\t{ start | restart|rst | stop }"
 	echo -e "\t{ enable | disable }"
 	echo -e "\tlist|lst\t[ all | sta[tic] | dis[covered] ]"
-	echo -e "\taddr[ess]\t{ NAME } [ 1 ]"
 	echo -e "\tname\t\t{ ADDRESS }"
+	echo -e "\taddr[ess]\t{ NAME } [ 1 ]"
 	echo -e "\tres[olve]\t{ NAME | ADDRESS } [ 1 ]"
 	echo -e "\twho[is|s]\t{ ADDRESS | MAC | NAME }"
 	echo -e
