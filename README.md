@@ -188,9 +188,34 @@ Command list:
 
 
 ```
-`ip6neigh` not only lists the discovered hosts, but also can do name resolution based on name, IPv6 address or even MAC address
+`ip6neigh` options include:
 
-`ip6neigh` replaces the older `ip6neigh_host_list.sh` command.
+* `list    [ all | sta[tic] | dis[covered] ]`
+With no extra argument: Shows all entries in hosts file, with comments and blank line.
+	* `all` Displays all entries in hosts file with no comments or blank lines. Can be used for scripting purposes.
+	* `static` Displays the static entries in the host file.
+	* `discovered` Displays the dynamically learned entries in the host file.
+	* This command replaces `ip6neigh_hosts_show.sh`
+*  `name    { ADDRESS }`
+Displays the FQDN for the IPv6 address. *The top level domain will not appear if the host have no label because this is the way it is stored in the hosts file.* 
+* `address { NAME } [ 1 ]`
+Returns the IPv6 addresses for the FQDN (Fully Qualified Domain Name). The top level domain name (e.g. 'lan') may be optionally omited and is not expected for names that don't have *labels*. Input examples: Laptop, Laptop.PUB, Laptop.PUB.lan, Laptop.TMP 
+	* Clean output for external scripting, like supplying the address to DDNS Scripts or to a custom firewall script that generates rules for GUAs based on names because ISP is issuing a dynamic prefix.
+If the extra argument '1' is supplied, limits the output to the first address associated with that FQDN. It is possible that hosts will have multiple temp addresses and they will have the same FQDN.
+This command replaces `ip6neigh_ddns.sh`
+* `mac     { NAME | ADDRESS }`
+Shows the MAC address for the FQDN, simple name or IPv6 address. Clean output.
+* `host    { NAME | ADDRESS }`
+Verbose style output for resolving FQDN to IPv6 addr or IPv6 addr to FQDN. *The top level domain name (e.g. 'lan') may be optionally omited and is not expected for names that don't have labels.*
+Input examples for FQDN: Laptop, Laptop.PUB, Laptop.PUB.lan, Laptop.TMP ...
+* `whois   { ADDRESS | MAC | NAME }`
+Verbose output for resolving anything to anything. If the argument is a name, it is expected to be a simple name like 'Laptop' (not a FQDN) and it will list all FQDN names and corresponding addresses that belong to the device with that name. `whois ipv6_addr ` and `whois mac` is designed to identify the device that owns such address
+
+
+
+`ip6neigh` not only lists the discovered hosts, but also can do name resolution based on name, IPv6 address or even MAC address. Some of the options (such as list, name and address)  are specifically designed in assisting the user in other scriping projects, and therefore have very simple (easily parsed) output.
+
+
 
 ## Installing MAC OUI lookup feature
 `ip6neigh_svc.sh` can use an offline MAC address OUI lookup, if the file `oui.gz` is present. This makes names more readable for clients which do not send their hostname (e.g. the Chromebook) when making a DHCP request.
