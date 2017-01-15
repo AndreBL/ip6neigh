@@ -16,6 +16,8 @@
 #
 #	by André Lange & Craig Miller	Jan 2017
 
+readonly VERSION="1.0.1"
+
 readonly HOSTS_FILE="/tmp/hosts/ip6neigh"
 readonly CACHE_FILE="/tmp/ip6neigh.cache"
 readonly SERVICE_NAME="ip6neigh-svc.sh"
@@ -23,19 +25,21 @@ readonly SERVICE_NAME="ip6neigh-svc.sh"
 
 #Display help text
 display_help() {
-	echo "ip6neigh Command Line Script"
+	echo "ip6neigh Command Line Script v${VERSION}"
 	echo -e
 	echo -e "Usage: $CMD COMMAND ..."
 	echo -e
 	echo -e "Available commands:"
-	echo -e "\t{ start | restart|rst | stop }"
+	echo -e "\t{ start | restart | stop }"
 	echo -e "\t{ enable | disable }"
-	echo -e "\tlist|lst\t[ all | sta[tic] | dis[covered] ]"
-	echo -e "\tname\t\t{ ADDRESS }"
-	echo -e "\taddr[ess]\t{ NAME } [ 1 ]"
-	echo -e "\tres[olve]\t{ NAME | ADDRESS } [ 1 ]"
-	echo -e "\twho[is|s]\t{ ADDRESS | MAC | NAME }"
+	echo -e "\tlist\t[ all | sta[tic] | dis[covered] ]"
+	echo -e "\tname\t{ ADDRESS }"
+	echo -e "\taddress\t{ NAME } [ 1 ]"
+	echo -e "\tmac\t{ NAME | ADDRESS }"
+	echo -e "\thost\t{ NAME | ADDRESS }"
+	echo -e "\twhois\t{ ADDRESS | MAC | NAME }"
 	echo -e
+	echo -e "Typing shortcuts: rst lst addr hst who whos"
 	exit 1
 }
 
@@ -158,11 +162,13 @@ show_address() {
 	case "$2" in
 		#Any number of addresses 
 		'')
-			grep -i -E " ${name}$|${name}\.${DOMAIN}$" "$HOSTS_FILE" | cut -d ' ' -f1
+			grep -i -E " ${name}$| ${name}\.${DOMAIN}$" "$HOSTS_FILE" |
+				cut -d ' ' -f1
 		;;
 		#Limit to one address
 		'1')
-			grep -m 1 -i -E " ${name}$|${name}\.${DOMAIN}$" "$HOSTS_FILE" | cut -d ' ' -f1
+			grep -m 1 -i -E " ${name}$| ${name}\.${DOMAIN}$" "$HOSTS_FILE" |
+				cut -d ' ' -f1
 		;;
 		#Invalid parameter
 		*) display_help;;
@@ -173,17 +179,57 @@ show_address() {
 show_name() {
 	check_running
 	check_files
+	
+	#Get name from the hosts file.
 	grep -m 1 -i "^$1 " "$HOSTS_FILE" | cut -d ' ' -f2
 }
 
-#Resolves name to address or address to name.
-resolve() {
-	#Check if it's an address
+#Display the MAC address for a simple name, FQDN or IPv6 address.
+show_mac() {
+	check_running
+	check_files
+	
+	local name
+	
+	#Check if it's address or name.
 	echo "$1" | grep -q ':'
 	if [ "$?" = 0 ]; then
-		show_name "$1"
+		#It's an address.
+		name=$(grep -m 1 -i "^$1 " "$HOSTS_FILE" |
+			cut -d ' ' -f2 |
+			cut -d '.' -f1
+		)
 	else
-		show_address "$1" "$2"
+		#It's a simple name or FQDN.
+		name=$(echo "$1" | cut -d '.' -f1)
+	fi
+	
+	#Get the MAC address from the cache file.
+	grep -m 1 -i " ${name}$" "$CACHE_FILE" |
+		cut -d ' ' -f1
+}
+
+#Resolves name to address or address to name.
+host_cmd() {
+	check_running
+	check_files
+	
+	#Check if it's address or name.
+	echo "$1" | grep -q ':'
+	if [ "$?" = 0 ]; then
+		#It's an address.
+		grep -m 1 -i "^$1 " "$HOSTS_FILE" |
+			awk '{printf "%s is named %s\n",$1,$2}'
+	else
+		#It's a name.
+		load_domain	
+		
+		#Prepare name for grep
+		local name
+		escape_dots name "$1"
+
+		grep -i -E " ${name}$| ${name}\.${DOMAIN}$" "$HOSTS_FILE" |
+			awk '{printf "%s has address %s\n",$2,$1}'
 	fi
 }
 
@@ -198,16 +244,17 @@ whois_this() {
 		#Check if it's a MAC address.
 		echo "$1" | grep -q '..:..:..:..:..:..'
 		if [ "$?" = 0 ]; then
-			#Get name from the cache file
-			grep -m 1 -i "^$1 " "$CACHE_FILE" | cut -d ' ' -f3
+			#MAC address. Get name from the cache file.
+			grep -m 1 -i "^$1 " "$CACHE_FILE" |
+				awk '{printf "%s is %s\n",$1,$3}'
 		else
-			#Get name from the hosts file
+			#IPv6 address. Get name from the hosts file.
 			grep -m 1 -i "^$1 " "$HOSTS_FILE" |
-				cut -d ' ' -f2 |
-				cut -d '.' -f1
+				cut -d '.' -f1 |
+				awk '{printf "%s belongs to %s\n",$1,$2}'
 		fi
 	else
-		#Get the addresses from the hosts file
+		#Name. Get the addresses from the hosts file.
 		grep -i -E " $1(\.|$)" "$HOSTS_FILE" |
 			awk '{printf "%-30s %s %s\n",$2,$1,$3}' |
 			sort
@@ -227,7 +274,8 @@ case "$1" in
 	'list'|'lst')		list_hosts "$2";;
 	'address'|'addr')	show_address "$2" "$3";;
 	'name')				show_name "$2";;
-	'resolve'|'res')	resolve "$2" "$3";;
+	'mac')				show_mac "$2";;
+	'host'|'hst')		host_cmd "$2" "$3";;
 	'whois'|'whos'|'who') whois_this "$2";;
 	*)					display_help;;
 esac
