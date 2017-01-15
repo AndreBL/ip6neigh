@@ -49,9 +49,8 @@ IPv6 addresses are difficult to remember. DNS provides an abstraction layer, so 
 	Downloading etc/hotplug.d/iface/30-ip6neigh
 	Downloading etc/config/ip6neigh
 	Downloading extra/ip6neigh_oui_download.sh
-	Downloading extra/ip6neigh_hosts_show.sh
-	Downloading extra/ip6neigh_ddns.sh
-
+	Downloading extra/ip6neigh
+	
 	Not overwriting existing config file /etc/config/ip6neigh.
 	The downloaded example config file will be moved to /etc/config/ip6neigh.example.
 	Removing directory tree /tmp/ip6neigh/
@@ -71,22 +70,22 @@ IPv6 addresses are difficult to remember. DNS provides an abstraction layer, so 
 
    Examples provided at: [dhcp](https://github.com/AndreBL/ip6neigh/blob/master/etc/config/dhcp)
 
-6. Start ip6neigh...
+5. Start ip6neigh...
 
 	manually with
 
     ```
-    /etc/init.d/ip6neigh start
+    ip6neigh start
     ```
 
 	or on boot with
 	
 	```
-	/etc/init.d/ip6neigh enable
+	ip6neigh enable
 	sync
 	reboot
 	```
-7. Use names instead of addresses for connecting to IPv6 hosts in your network.
+6. Use names instead of addresses for connecting to IPv6 hosts in your network.
 
 ### Uninstalling ip6neigh
 
@@ -130,7 +129,7 @@ It is possible to see the host file via the LuCI web interface by using luci-app
 	#ip6neigh commands
 	config command
         	option name 'IPv6 Neighbors'
-        	option command 'ip6neigh_hosts_show.sh'
+        	option command 'ip6neigh list'
 
 	config command
         	option name 'ip6neigh log'
@@ -148,7 +147,7 @@ It is possible to see the host file via the LuCI web interface by using luci-app
 5. Or run from CLI
 
 	```
-	# ip6neigh_hosts_show.sh 
+	# ip6neigh list 
 	#Predefined hosts
 	Router                         2001:470:ebbd:4::1 
 	Router.LL.lan                  fe80::224:a5ff:fed7:3088 
@@ -166,6 +165,32 @@ It is possible to see the host file via the LuCI web interface by using luci-app
 
 	```
 	
+## Tools
+
+Included is a versitle tool called `ip6negh` which controls most of the functions, starting, stopping, as well as an aid in troubleshooting.
+
+### Help
+
+```
+# ip6neigh
+ip6neigh Command Line Script
+
+Usage: /usr/bin/ip6neigh COMMAND ...
+
+Command list:
+        { start | restart|rst | stop }
+        { enable | disable }
+        list|lst        [ all | sta[tic] | dis[covered] ]
+        addr[ess]       { NAME } [ 1 ]
+        name            { ADDRESS }
+        res[olve]       { ADDRESS | NAME } [ 1 ]
+        who[is|s]       { NAME | ADDRESS | MAC }
+
+
+```
+`ip6neigh` not only lists the discovered hosts, but also can do name resolution based on name, IPv6 address or even MAC address
+
+`ip6neigh` replaces the older `ip6neigh_host_list.sh` command.
 
 ## Installing MAC OUI lookup feature
 `ip6neigh_svc.sh` can use an offline MAC address OUI lookup, if the file `oui.gz` is present. This makes names more readable for clients which do not send their hostname (e.g. the Chromebook) when making a DHCP request.
@@ -220,7 +245,7 @@ Tue Dec 27 01:32:20 UTC 2016 Probing other possible addresses for hau: fe80::d69
 To list the hostnames detected by **ip6neigh**.
 
 ```
-# ip6neigh_hosts_show.sh
+# ip6neigh list
 #Predefined                              SLAAC addresses
 fe80::224:a5ff:fed7:3088                 Router.LL.lan 
 2001:470:ebbd:4::1                       Router 
