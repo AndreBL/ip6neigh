@@ -164,10 +164,22 @@ It is possible to see the host file via the LuCI web interface by using luci-app
 	hau.TMP.lan                    2001:470:ebbd:4::46f 
 
 	```
+
+## Using DNS Labels
+`ip6neigh` uses DNS labels, which can be thought of as subdomains for the top level domain `lan`. Example DNS labels (in bold) that `ip6neigh` use are:
+
+* Computer.**TMP**.lan (a temporary address)
+* Computer.**LL**.lan (a link-local address)
+* Computer.**TMP.PUB**.lan (a temporary GUA)
+* Computer (no DNS label applied, e.g. a simple name)
+
+DNS Labels used by `ip6neigh` can be configured in `/etc/config/ip6neigh` file.
+
+The rule of thumb for configuring DNS labels is to clear the label for the scope of address that you consider as preferred for local connectivity, and give DNS labels for every other scope of address, providing unique names to *all* IPv6 addresses on the network.
 	
 ## Tools
 
-Included is a versitle tool called `ip6negh` which controls most of the functions, starting, stopping, as well as an aid in troubleshooting.
+Included is a versatile tool called `ip6negh` which controls most of the functions, starting, stopping, as well as an aid in troubleshooting.
 
 ### Help
 
@@ -197,23 +209,23 @@ With no extra argument: Shows all entries in hosts file, with comments and blank
 	* `discovered` Displays the dynamically learned entries in the host file.
 	* This command replaces `ip6neigh_hosts_show.sh`
 *  `name    { ADDRESS }`
-Displays the FQDN for the IPv6 address. *The top level domain will not appear if the host have no label because this is the way it is stored in the hosts file.* 
+Displays the FQDN for the IPv6 address. Depending on the user configuration in `/etc/config/ip6neigh` The top level domain will not appear if the host has no DNS label.  
 * `address { NAME } [ 1 ]`
-Returns the IPv6 addresses for the FQDN (Fully Qualified Domain Name). The top level domain name (e.g. 'lan') may be optionally omited and is not expected for names that don't have *labels*. Input examples: Laptop, Laptop.PUB, Laptop.PUB.lan, Laptop.TMP 
+Returns the IPv6 addresses for the FQDN (Fully Qualified Domain Name). The top level domain name (e.g. 'lan') may be optionally omitted. Input examples: Laptop, Laptop.PUB, Laptop.PUB.lan, Laptop.TMP 
 	* Clean output for external scripting, like supplying the address to DDNS Scripts or to a custom firewall script that generates rules for GUAs based on names because ISP is issuing a dynamic prefix.
 If the extra argument '1' is supplied, limits the output to the first address associated with that FQDN. It is possible that hosts will have multiple temp addresses and they will have the same FQDN.
 This command replaces `ip6neigh_ddns.sh`
 * `mac     { NAME | ADDRESS }`
 Shows the MAC address for the FQDN, simple name or IPv6 address. Clean output.
 * `host    { NAME | ADDRESS }`
-Verbose style output for resolving FQDN to IPv6 addr or IPv6 addr to FQDN. *The top level domain name (e.g. 'lan') may be optionally omited and is not expected for names that don't have labels.*
+Verbose style output for resolving FQDN to IPv6 addr or IPv6 addr to FQDN. The top level domain name (e.g. 'lan') may be optionally omitted and is not expected for names that don't have labels.
 Input examples for FQDN: Laptop, Laptop.PUB, Laptop.PUB.lan, Laptop.TMP ...
 * `whois   { ADDRESS | MAC | NAME }`
 Verbose output for resolving anything to anything. If the argument is a name, it is expected to be a simple name like 'Laptop' (not a FQDN) and it will list all FQDN names and corresponding addresses that belong to the device with that name. `whois ipv6_addr ` and `whois mac` is designed to identify the device that owns such address
 
 
 
-`ip6neigh` not only lists the discovered hosts, but also can do name resolution based on name, IPv6 address or even MAC address. Some of the options (such as list, name and address)  are specifically designed in assisting the user in other scriping projects, and therefore have very simple (easily parsed) output.
+`ip6neigh` not only lists the discovered hosts, but also can do name resolution based on name, IPv6 address or even MAC address. Some of the options (such as list, name and address)  are specifically designed in assisting the user in other scripting projects, and therefore have very simple (easily parsed) output.
 
 
 
