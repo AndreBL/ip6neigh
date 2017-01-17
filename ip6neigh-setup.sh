@@ -14,7 +14,7 @@
 #
 #	by André Lange	Dec 2016
 
-readonly VERSION='1.0.0'
+readonly VERSION='1.0.1'
 
 readonly BIN_DIR="/usr/bin/"
 readonly SBIN_DIR="/usr/sbin/"
@@ -171,8 +171,9 @@ install() {
 	#Check if the install list version match the repository
 	echo "Checking installer version..."
 	download_file "${TEMP_DIR}VERSION" "setup/VERSION"
-	local repo_version=$(cut -d '.' -f1-2 "${TEMP_DIR}VERSION")
-	[ "$VERSION" = "$repo_version" ] || errormsg "This installation script is out of date. Please visit https://github.com/AndreBL/ip6neigh and check if a new version of the installer is available for download."
+	local loc_version=$(echo "$VERSION" | cut -d '.' -f1-2)
+	local rem_version=$(cut -d '.' -f1-2 "${TEMP_DIR}VERSION")
+	[ "$loc_version" = "$rem_version" ] || errormsg "This installation script is out of date. Please visit https://github.com/AndreBL/ip6neigh and check if a new version of the installer is available for download."
 	echo "The installer script is up to date."
 	
 	#Check if already installed

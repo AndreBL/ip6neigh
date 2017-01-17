@@ -44,7 +44,7 @@ IPv6 addresses are difficult to remember. DNS provides an abstraction layer, so 
 	```
 	# ./ip6neigh-setup.sh install
 	Checking installer version...
-	Installer script is up to date.
+	The installer script is up to date.
 
 	Creating directory /usr/share/ip6neigh/
 	Downloading ip6neigh-setup.sh
@@ -62,11 +62,10 @@ IPv6 addresses are difficult to remember. DNS provides an abstraction layer, so 
 	
 	Run the following command if you want to download an offline OUI lookup database:
 
-		ip6neigh-oui-download.sh
+		ip6neigh-oui-download
 
-	Enable and start ip6neigh with:
+	Start ip6neigh with:
 
-		ip6neigh enable
 		ip6neigh start
 	```
    
@@ -93,10 +92,10 @@ IPv6 addresses are difficult to remember. DNS provides an abstraction layer, so 
 
 ### Uninstalling ip6neigh
 
-ip6neigh can be uninstalled by passing the `remove` parameter to the installer:
+A copy of the installer script will be available in /usr/bin/ after installation. ip6neigh can be uninstalled by passing the `remove` parameter to the installer:
 
 ```
-ip6neigh-setup.sh remove
+# ip6neigh-setup remove
 Stopping ip6neigh...
 
 Removing /tmp/hosts/ip6neigh
@@ -104,8 +103,8 @@ Removing /tmp/ip6neigh.cache
 Removing /etc/hotplug.d/iface/30-ip6neigh
 Removing /etc/init.d/ip6neigh
 Removing /usr/bin/ip6neigh
-Removing /usr/bin/ip6neigh-oui-download.sh
-Removing /usr/bin/ip6neigh-setup.sh
+Removing /usr/bin/ip6neigh-oui-download
+Removing /usr/bin/ip6neigh-setup
 Removing /usr/sbin/ip6neigh-svc.sh
 Removing directory tree /usr/share/ip6neigh/
 
@@ -234,11 +233,11 @@ Verbose output for resolving anything to anything. If the argument is a name, it
 ## Installing MAC OUI lookup feature
 `ip6neigh-svc.sh` can use an offline MAC address OUI lookup, if the file `oui.gz` is present. This makes names more readable for clients which do not send their hostname (e.g. the Chromebook) when making a DHCP request.
 
-To install, run `ip6neigh-oui-download.sh` tool, which will install oui.gz for offline oui lookup.
+To install, run `ip6neigh-oui-download` tool, which will install oui.gz for offline oui lookup.
 
 
 ```
-#ip6neigh-oui-download.sh 
+# ip6neigh-oui-download 
 Downloading Nmap MAC prefixes...
 Connecting to linuxnet.ca (24.222.55.20:80)
 oui-raw.txt          100% |***********************************************************************|   552k  0:00:00 ETA
@@ -311,7 +310,7 @@ In order to use the LuCI web interface, one must install `luci-app-commands`
 
 ip6neigh is designed to operate in a dual-stack network with both IPv4 and IPv6 running. It will collect host names and return them when queried by DNS.
 
-ip6neigh relies on DHCPv4 client to report its hostname (option 12) or DHCPv6 client option 39. If the client does not report the hostname, then an "Unknown-XXX" name will be applied with *XXX* as the last three hex digits of the MAC address. If the offline MAC OUI lookup has been activated (by running the script  ip6neigh-oui-download.sh), then the MAC OUI manufacturer name will be used instead of Unknown.
+ip6neigh relies on DHCPv4 client to report its hostname (option 12) or DHCPv6 client option 39. If the client does not report the hostname, then an "Unknown-XXX" name will be applied with *XXX* as the last three hex digits of the MAC address. If the offline MAC OUI lookup has been activated (by running the script  ip6neigh-oui-download), then the MAC OUI manufacturer name will be used instead of Unknown.
 
 Names will be discovered in the following order (and priority):
 
@@ -324,7 +323,7 @@ Names will be discovered in the following order (and priority):
 
 ### Assumptions
 
-ip6neigh_svc.sh assumes that IPv6 subnets are /64 (which is what hosts should see in an IPv6 network for SLAAC to work). It also assumes DHCPv4 and SLAAC environments, but can also work in other environments (such as DHCPv6-only).
+ip6neigh-svc.sh assumes that IPv6 subnets are /64 (which is what hosts should see in an IPv6 network for SLAAC to work). It also assumes DHCPv4 and SLAAC environments, but can also work in other environments (such as DHCPv6-only).
 
 ## Contributors
 
