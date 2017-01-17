@@ -205,24 +205,23 @@ Command list:
 
 * `list    [ all | sta[tic] | dis[covered] ]`
 With no extra argument: Shows all entries in hosts file, with comments and blank line.
-	* `all` Displays all entries in hosts file with no comments or blank lines. Can be used for scripting purposes.
+	* `all` Displays all entries in hosts file without comments or blank lines. Can be used for scripting purposes.
 	* `static` Displays the static entries in the host file.
 	* `discovered` Displays the dynamically learned entries in the host file.
 	* This command replaces `ip6neigh_hosts_show.sh`
 *  `name    { ADDRESS }`
-Displays the FQDN for the IPv6 address. Depending on the user configuration in `/etc/config/ip6neigh` The top level domain will not appear if the host has no DNS label.  
+Displays the FQDN (Fully Qualified Domain Name) for the IPv6 address. Depending on the user configuration in `/etc/config/ip6neigh`, the top level domain will not appear if the host has no DNS label.  
 * `address { NAME } [ 1 ]`
-Returns the IPv6 addresses for the FQDN (Fully Qualified Domain Name). The top level domain name (e.g. 'lan') may be optionally omitted. Input examples: Laptop, Laptop.PUB, Laptop.PUB.lan, Laptop.TMP 
-	* Clean output for external scripting, like supplying the address to DDNS Scripts or to a custom firewall script that generates rules for GUAs based on names because ISP is issuing a dynamic prefix.
-If the extra argument '1' is supplied, limits the output to the first address associated with that FQDN. It is possible that hosts will have multiple temp addresses and they will have the same FQDN.
+Returns the IPv6 addresses for the FQDN. The top level domain name (e.g. 'lan') may be optionally omitted for convenience. Input examples: Laptop, Laptop.PUB, Laptop.PUB.lan, Laptop.TMP 
+	* This command has a clean output for external scripting, like supplying the address to DDNS Scripts or to a custom firewall script that generates rules for GUAs based on names because ISP is issuing a dynamic prefix.
+It is possible that hosts will have multiple temp addresses and they will have the same FQDN. If the extra argument '1' is supplied, limits the output to the first address associated with that FQDN.
 This command replaces `ip6neigh_ddns.sh`
 * `mac     { NAME | ADDRESS }`
 Shows the MAC address for the FQDN, simple name or IPv6 address. Clean output.
 * `host    { NAME | ADDRESS }`
-Verbose style output for resolving FQDN to IPv6 addr or IPv6 addr to FQDN. The top level domain name (e.g. 'lan') may be optionally omitted and is not expected for names that don't have labels.
+Verbose style output for resolving FQDN to IPv6 addresses or IPv6 address to FQDN. The top level domain name (e.g. 'lan') may be optionally omitted cor convenience and is not expected to be supplied for names that don't have labels.
 Input examples for FQDN: Laptop, Laptop.PUB, Laptop.PUB.lan, Laptop.TMP ...
 * `whois   { ADDRESS | MAC | NAME }`
-Verbose output for resolving anything to anything. If the argument is a name, it is expected to be a simple name like 'Laptop' (not a FQDN) and it will list all FQDN names and corresponding addresses that belong to the device with that name. `whois ipv6_addr ` and `whois mac` is designed to identify the device that owns such address
 
 
 
