@@ -222,6 +222,7 @@ Shows the MAC address for the FQDN, simple name or IPv6 address. Clean output.
 Verbose style output for resolving FQDN to IPv6 addresses or IPv6 address to FQDN. The top level domain name (e.g. 'lan') may be optionally omitted cor convenience and is not expected to be supplied for names that don't have labels.
 Input examples for FQDN: Laptop, Laptop.PUB, Laptop.PUB.lan, Laptop.TMP ...
 * `whois   { ADDRESS | MAC | NAME }`
+Verbose style output for helping to trace a device's SLAAC activity. `whois ipv6_addr` and `whois mac_addr` are designed to identify the device that owns such addresses. If the argument is a name, it is expected to be the simple name that represents the device like 'Laptop' (not a FQDN) and it will list all FQDN names and the corresponding addresses that belong to that device.
 
 
 
