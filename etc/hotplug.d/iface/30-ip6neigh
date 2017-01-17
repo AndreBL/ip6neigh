@@ -1,6 +1,8 @@
 #!/bin/sh
 
-/etc/init.d/ip6neigh enabled || exit 0
+readonly SERVICE_NAME="ip6neigh-svc.sh"
+
+pgrep -f "$SERVICE_NAME" >/dev/null || exit 0
 
 lan=$(uci get ip6neigh.config.lan_iface 2>/dev/null)
 if [ -z "$lan" ]; then lan="lan"; fi

@@ -14,7 +14,7 @@
 #
 #	by André Lange	Dec 2016
 
-readonly SETUP_VER=3
+readonly VERSION='1.0.0'
 
 readonly BIN_DIR="/usr/bin/"
 readonly SBIN_DIR="/usr/sbin/"
@@ -32,14 +32,14 @@ readonly REPO="https://raw.githubusercontent.com/AndreBL/ip6neigh/master/"
 #Installation list
 readonly inst_list="
 dir ${SHARE_DIR}
-file ${BIN_DIR}ip6neigh-setup.sh ip6neigh-setup.sh x
+file ${BIN_DIR}ip6neigh-setup ip6neigh-setup.sh x
 file ${SBIN_DIR}ip6neigh-svc.sh main/ip6neigh-svc.sh x
 file /etc/init.d/ip6neigh etc/init.d/ip6neigh x
 file /etc/hotplug.d/iface/30-ip6neigh etc/hotplug.d/iface/30-ip6neigh x
 file ${TEMP_DIR}config etc/config/ip6neigh
 
-file ${BIN_DIR}ip6neigh extra/ip6neigh x
-file ${BIN_DIR}ip6neigh-oui-download.sh extra/ip6neigh-oui-download.sh x
+file ${BIN_DIR}ip6neigh extra/ip6neigh.sh x
+file ${BIN_DIR}ip6neigh-oui-download extra/ip6neigh-oui-download.sh x
 "
 
 #Uninstallation list
@@ -57,11 +57,10 @@ readonly SUCCESS_MSG="
 
 Run the following command if you want to download an offline OUI lookup database:
 
-	ip6neigh-oui-download.sh
+	ip6neigh-oui-download
 
-Enable and start ip6neigh with:
+Start ip6neigh with:
 
-	ip6neigh enable
 	ip6neigh start
 "
 
@@ -169,11 +168,12 @@ uninstall_line() {
 install() {
 	mkdir -p "$TEMP_DIR" || errormsg "Failed to create directory $TEMP_DIR"
 	
-	#Check if this installer's version match the repository
+	#Check if the install list version match the repository
 	echo "Checking installer version..."
 	download_file "${TEMP_DIR}VERSION" "setup/VERSION"
-	[ "$SETUP_VER" = "$(cat ${TEMP_DIR}VERSION)" ] || errormsg "This installation script is out of date. Please visit https://github.com/AndreBL/ip6neigh and check if a new version of the installer is available for download."
-	echo "Installer script is up to date."
+	local repo_version=$(cut -d '.' -f1-2 "${TEMP_DIR}VERSION")
+	[ "$VERSION" = "$repo_version" ] || errormsg "This installation script is out of date. Please visit https://github.com/AndreBL/ip6neigh and check if a new version of the installer is available for download."
+	echo "The installer script is up to date."
 	
 	#Check if already installed
 	[ -d "$SHARE_DIR" ] && echo -e "\n The existing installation of ip6neigh will be overwritten."
@@ -238,7 +238,7 @@ uninstall() {
 
 #Help text
 display_help() {
-	echo "ip6neigh Installer Script"
+	echo "ip6neigh Installer Script v${VERSION}"
 	echo -e
 	echo "Usage: $1 command"
 	echo -e

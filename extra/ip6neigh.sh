@@ -16,7 +16,7 @@
 #
 #	by André Lange & Craig Miller	Jan 2017
 
-readonly VERSION="1.0.1"
+readonly VERSION="1.0.2"
 
 readonly HOSTS_FILE="/tmp/hosts/ip6neigh"
 readonly CACHE_FILE="/tmp/ip6neigh.cache"
@@ -41,17 +41,6 @@ display_help() {
 	echo -e
 	echo -e "Typing shortcuts: rst lst addr hst who whos"
 	exit 1
-}
-
-#Checks if the init.d script is enabled.
-check_enabled() {
-	if ! /etc/init.d/ip6neigh enabled ; then
-		>&2 echo "The service is not enabled. Enable it with:"
-		>&2 echo -e
-		>&2 echo " $CMD enable"
-		exit 3
-	fi
-	return 0
 }
 
 #Returns SUCCESS if the service is running.
@@ -81,13 +70,13 @@ start_service() {
 		>&2 echo "The service is already running."
 		exit 2
 	fi
-	check_enabled && /etc/init.d/ip6neigh start
+	/etc/init.d/ip6neigh start
 }
 stop_service() {
 	check_running && /etc/init.d/ip6neigh stop
 }
 restart_service() {
-	check_enabled && /etc/init.d/ip6neigh restart
+	/etc/init.d/ip6neigh restart
 }
 enable_service() {
 	/etc/init.d/ip6neigh enable
