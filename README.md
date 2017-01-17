@@ -9,6 +9,10 @@ Rather than using clunky IP addresses (v4 or v6), devices on your network now be
 * router.lan
 * mycomputer.lan
 
+or simply
+* router
+* mycomputer
+
 ## Motivation
 
 IPv6 addresses are difficult to remember. DNS provides an abstraction layer, so that IP addresses do not have to be memorized. There are at least two situations where this set up is useful:
@@ -30,28 +34,27 @@ IPv6 addresses are difficult to remember. DNS provides an abstraction layer, so 
 2. Download the installer script script to /tmp on your router by running the following command:
 	
 	```
-	# curl -k -o /tmp/ip6neigh_setup.sh https://raw.githubusercontent.com/AndreBL/ip6neigh/master/ip6neigh_setup.sh
-	# chmod +x /tmp/ip6neigh_setup.sh
+	# curl -k -o /tmp/ip6neigh-setup.sh https://raw.githubusercontent.com/AndreBL/ip6neigh/master/ip6neigh-setup.sh
+	# chmod +x /tmp/ip6neigh-setup.sh
 	```
 
-3. Change directory to /tmp, and run `ip6neigh_setup.sh install`
+3. Change directory to /tmp, and run `ip6neigh-setup.sh install`
 
 	
 	```
-	# ./ip6neigh_setup.sh install
+	# ./ip6neigh-setup.sh install
 	Checking installer version...
 	Installer script is up to date.
 
 	Creating directory /usr/share/ip6neigh/
-	Downloading ip6neigh_setup.sh
-	Downloading main/ip6neigh_svc.sh
+	Downloading ip6neigh-setup.sh
+	Downloading main/ip6neigh-svc.sh
 	Downloading etc/init.d/ip6neigh
 	Downloading etc/hotplug.d/iface/30-ip6neigh
 	Downloading etc/config/ip6neigh
-	Downloading extra/ip6neigh_oui_download.sh
+	Downloading extra/ip6neigh-oui-download.sh
 	Downloading extra/ip6neigh
 	
-	Not overwriting existing config file /etc/config/ip6neigh.
 	The downloaded example config file will be moved to /etc/config/ip6neigh.example.
 	Removing directory tree /tmp/ip6neigh/
 
@@ -59,11 +62,12 @@ IPv6 addresses are difficult to remember. DNS provides an abstraction layer, so 
 	
 	Run the following command if you want to download an offline OUI lookup database:
 
-		ip6neigh_oui_download.sh
+		ip6neigh-oui-download.sh
 
-	Start ip6neigh by running:
+	Enable and start ip6neigh with:
 
-		/etc/init.d/ip6neigh start
+		ip6neigh enable
+		ip6neigh start
 	```
    
 4. (Optional) Edit your current dhcp config file /etc/config/dhcp for adding predefined SLAAC hosts. 
@@ -89,23 +93,20 @@ IPv6 addresses are difficult to remember. DNS provides an abstraction layer, so 
 
 ### Uninstalling ip6neigh
 
-ip6neigh can be uninstalled by using the `remove` parameter to the installer:
+ip6neigh can be uninstalled by passing the `remove` parameter to the installer:
 
 ```
-/tmp/ip6neigh_setup.sh remove 
+ip6neigh-setup.sh remove
 Stopping ip6neigh...
 
 Removing /tmp/hosts/ip6neigh
 Removing /tmp/ip6neigh.cache
 Removing /etc/hotplug.d/iface/30-ip6neigh
-Removing etc/hotplug.d/iface/30-ip6neigh
 Removing /etc/init.d/ip6neigh
-Removing etc/init.d/ip6neigh
-Removing /usr/bin/ip6neigh_ddns.sh
-Removing /usr/bin/ip6neigh_hosts_show.sh
-Removing /usr/bin/ip6neigh_oui_download.sh
-Removing /usr/bin/ip6neigh_setup.sh
-Removing /usr/sbin/ip6neigh_svc.sh
+Removing /usr/bin/ip6neigh
+Removing /usr/bin/ip6neigh-oui-download.sh
+Removing /usr/bin/ip6neigh-setup.sh
+Removing /usr/sbin/ip6neigh-svc.sh
 Removing directory tree /usr/share/ip6neigh/
 
 The config file /etc/config/ip6neigh was kept in place for future use. Please remove this file manually if you will not need it anymore.
@@ -176,6 +177,7 @@ It is possible to see the host file via the LuCI web interface by using luci-app
 DNS Labels used by `ip6neigh` can be configured in `/etc/config/ip6neigh` file.
 
 The rule of thumb for configuring DNS labels is to clear the label for the scope of address that you consider as preferred for local connectivity, and give DNS labels for every other scope of address, providing unique names to *all* IPv6 addresses on the network.
+By default, ip6neigh will use simple names (with no label) for non-temporary ULA addresses if the router's LAN interface has an ULA prefix. If no ULA prefix is present, ip6neigh will consider non-temporary GUA addresses as preferred for local connectivity and will give names without labels for them.
 	
 ## Tools
 
@@ -225,18 +227,18 @@ Verbose output for resolving anything to anything. If the argument is a name, it
 
 
 
-`ip6neigh` not only lists the discovered hosts, but also can do name resolution based on name, IPv6 address or even MAC address. Some of the options (such as list, name and address)  are specifically designed in assisting the user in other scripting projects, and therefore have very simple (easily parsed) output.
+`ip6neigh` not only lists the discovered hosts, but also can do name resolution based on name, IPv6 address or even MAC address. Some of the options (such as list, name and address) are specifically designed in assisting the user in other scripting projects, and therefore have very simple (easily parsed) output.
 
 
 
 ## Installing MAC OUI lookup feature
-`ip6neigh_svc.sh` can use an offline MAC address OUI lookup, if the file `oui.gz` is present. This makes names more readable for clients which do not send their hostname (e.g. the Chromebook) when making a DHCP request.
+`ip6neigh-svc.sh` can use an offline MAC address OUI lookup, if the file `oui.gz` is present. This makes names more readable for clients which do not send their hostname (e.g. the Chromebook) when making a DHCP request.
 
-To install, run `ip6neigh_oui_download.sh` tool, which will install oui.gz for offline oui lookup.
+To install, run `ip6neigh-oui-download.sh` tool, which will install oui.gz for offline oui lookup.
 
 
 ```
-#./ip6neigh_oui_download.sh 
+#ip6neigh-oui-download.sh 
 Downloading Nmap MAC prefixes...
 Connecting to linuxnet.ca (24.222.55.20:80)
 oui-raw.txt          100% |***********************************************************************|   552k  0:00:00 ETA
@@ -252,12 +254,12 @@ Hosts which do not send their hostname (e.g. Unknown-9BA.LL.lan) will now have a
 
 ## Troubleshooting
 
-`ip6neigh_svc` should start up after step 6 above. You can check that it is running by typing
+`ip6neigh-svc.sh` should start up after step 6 above. You can check that it is running by typing
 
 ```
 # ps | grep ip6negh
-16727 root      1452 S    {ip6neigh_svc.sh} /bin/sh /usr/sbin/ip6neigh_svc.sh -s
-16773 root      1452 S    {ip6neigh_svc.sh} /bin/sh /usr/sbin/ip6neigh_svc.sh -s
+16727 root      1452 S    {ip6neigh-svc.sh} /bin/sh /usr/sbin/ip6neigh-svc.sh -s
+16773 root      1452 S    {ip6neigh-svc.sh} /bin/sh /usr/sbin/ip6neigh-svc.sh -s
 16775 root      1356 S    grep ip6
 ```
 
@@ -282,17 +284,21 @@ Tue Dec 27 01:32:20 UTC 2016 Probing other possible addresses for hau: fe80::d69
 To list the hostnames detected by **ip6neigh**.
 
 ```
-# ip6neigh list
-#Predefined                              SLAAC addresses
-fe80::224:a5ff:fed7:3088                 Router.LL.lan 
-2001:470:ebbd:4::1                       Router 
-                                          
-#Discovered                              IPv6 neighbors
-fe80::d69a:20ff:fe01:e0a4                hau.LL.lan 
-2001:470:ebbd:4:20ca:43:4559:9da4        hau.TMP.lan 
-fe80::5048:e4ff:fe4d:a27d                alarm.LL.lan 
-2001:470:ebbd:4:d69a:20ff:fe01:e0a4      hau 
-2001:470:ebbd:4:5048:e4ff:fe4d:a27d      alarm 
+# ip6neigh list 
+#Predefined hosts
+Router                         2001:470:ebbd:4::1 
+Router.LL.lan                  fe80::224:a5ff:fed7:3088 
+
+#Discovered hosts
+Speed-9BA                      2001:470:ebbd:4:213:3bff:fe99:19ba 
+Speed-9BA.LL.lan               fe80::213:3bff:fe99:19ba 
+Speed-9BA.TMP.lan              2001:470:ebbd:4:b5e3:1def:443b:f7b9 
+alarm                          2001:470:ebbd:4:5048:e4ff:fe4d:a27d 
+alarm.LL.lan                   fe80::5048:e4ff:fe4d:a27d 
+alarm.TMP.lan                  2001:470:ebbd:4:614b:2c7:27af:6713 
+hau                            2001:470:ebbd:4:d69a:20ff:fe01:e0a4 
+hau.LL.lan                     fe80::d69a:20ff:fe01:e0a4 
+hau.TMP.lan                    2001:470:ebbd:4::46f 
 ```
 
 ## Dependencies
@@ -305,15 +311,15 @@ In order to use the LuCI web interface, one must install `luci-app-commands`
 
 ip6neigh is designed to operate in a dual-stack network with both IPv4 and IPv6 running. It will collect host names and return them when queried by DNS.
 
-ip6neigh relies on DHCPv4/client to report its hostname (option 12) or DHCPv6 Client Option . If the client does not report the hostname, then an "Unknown-xxx" name will be applied with *xxx* as the last three bytes of the MAC address. If the offline MAC OUI lookup has been activated (by running the script  ip6neigh_oui_download.sh), then the MAC OUI manufacturer name will be used instead of Unknown.
+ip6neigh relies on DHCPv4 client to report its hostname (option 12) or DHCPv6 client option 39. If the client does not report the hostname, then an "Unknown-XXX" name will be applied with *XXX* as the last three hex digits of the MAC address. If the offline MAC OUI lookup has been activated (by running the script  ip6neigh-oui-download.sh), then the MAC OUI manufacturer name will be used instead of Unknown.
 
 Names will be discovered in the following order (and priority):
 
 1. Static hosts in /etc/config/dhcp
 2. DHCPv6 leases
 3. DHCPv4 leases
-4. OUI manufacurer-xxx
-5. simple Unknown-xxx names.
+4. OUI manufacturer-XXX
+5. simple Unknown-XXX names.
 
 
 ### Assumptions
