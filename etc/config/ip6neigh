@@ -71,12 +71,13 @@ config ip6neigh 'config'
 	# 0=disabled, 1=enabled. Default: '1'
 	#option load_stale	'0'
 	
-	# User firewall script file. If defined, ip6neigh will call this script upon
-	# start, after populating the hosts file with predefined hosts from
-	# /etc/config/dhcp. Useful for creating firewall rules for global addresses
-	# with dynamic prefix. The arguments passed to the script are:
-	# domain_name LAN_device WAN_device ULA_address ULA_prefix GUA_address GUA_prefix
-	#option fw_script		'/root/ip6_firewall.sh'
+	# List of user firewall script files. If defined, ip6neigh will call these
+	# scripts upon start, after populating the hosts file with predefined hosts
+	# from /etc/config/dhcp. Useful for creating firewall rules for global addresses
+	# with dynamic prefix. The environmental variables passed to the script are:
+	# DOMAIN LAN_DEV WAN_DEV ULA_ADDR ULA_PREFIX GUA_ADDR GUA_PREFIX
+	#list fw_script		'/root/file_server.sh'
+	#list fw_script		'/root/other_server.sh'
 
 	# Enable logging of debug messages. Options are '0' for disabled,
 	# '1' to use syslog or 'file name' if you want to log to a file instead.

@@ -42,11 +42,17 @@ config host
 # secure against possible attacks. Use with caution.
 config host
 	option name		'WoL'
-	option ip		'192.168.0.254'
+	#Layer 2 broadcast address. Leave it as it is.
 	option mac		'ff:ff:ff:ff:ff:ff'
-	option dns		'1'
-	option slaac	'ffff:ffff:ffff:ffff'
+	#This may be changed to a custom interface identifier.
+	option slaac	'feed:feed:feed:feed'
 	option perm		'1'
+#Firewall rules to be put in /etc/firewall.user for the above example, using UDP port 9 to
+#forward WoL packets from the internet to LAN interface br-lan:
+#ip6tables -N wol_forwarding
+#ip6tables -A wol_forwarding -p udp --dport 9 -m limit --limit 10/sec --limit-burst 30 -j ACCEPT
+#ip6tables -A wol_forwarding -j DROP
+#ip6tables -A forwarding_wan_rule -o br-lan -d 2000::feed:feed:feed:feed/e000::ffff:ffff:ffff:ffff -j wol_forwarding
 
 # Workaround solution for crappy Android 5 (Lollipop) devices that are known to
 # have a bug in their NDP protocol that slows down the web browser response in

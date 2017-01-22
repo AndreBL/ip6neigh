@@ -20,9 +20,17 @@
 . /lib/functions.sh
 . /lib/functions/network.sh
 
+#Program definitions
+readonly VERSION="1.0.1"
+readonly CONFIG_FILE="/etc/config/ip6neigh"
+readonly HOSTS_FILE="/tmp/hosts/ip6neigh"
+readonly CACHE_FILE="/tmp/ip6neigh.cache"
+readonly OUI_FILE="/usr/share/ip6neigh/oui.gz"
+readonly TEMP_FILE="/tmp/ip6neigh.tmp"
+
 #Check if the user is trying to run this script on its own
 if [ "$1" != "-s" ]; then
-	echo "ip6neigh Service Script"
+	echo "ip6neigh Service Script v${VERSION}"
 	echo -e
 	echo "This script is intended to be run only by its init script /etc/init.d/ip6neigh."
 	echo "If you want to start ip6neigh, type:"
@@ -32,13 +40,6 @@ if [ "$1" != "-s" ]; then
 	
 	exit 1
 fi
-
-#Program definitions
-readonly CONFIG_FILE="/etc/config/ip6neigh"
-readonly HOSTS_FILE="/tmp/hosts/ip6neigh"
-readonly CACHE_FILE="/tmp/ip6neigh.cache"
-readonly OUI_FILE="/usr/share/ip6neigh/oui.gz"
-readonly TEMP_FILE="/tmp/ip6neigh.tmp"
 
 #Writes error message and terminates the program.
 errormsg() {
@@ -820,11 +821,19 @@ ip -6 neigh show dev "$LAN_DEV" |
 		process $line
 	done
 	
-#Check if there's a custom script to be runned.
-if [ -n "$FW_SCRIPT" ] && [ -f "$FW_SCRIPT" ]; then
-	logmsg "Running user firewall script: $FW_SCRIPT '$DOMAIN' '$LAN_DEV' '$WAN_DEV' '$ula_address' '$ula_prefix' '$gua_address' '$gua_prefix'"
-	/bin/sh "$FW_SCRIPT" "$DOMAIN" "$LAN_DEV" "$WAN_DEV" "$ula_address" "$ula_prefix" "$gua_address" "$gua_prefix"
+#Check if there are custom scripts to be runned.
+if [ -n "$FW_SCRIPT" ]; then
+	for script in $FW_SCRIPT; do
+		if [ -f "$script" ]; then
+			logmsg "Running user firewall script: $script"
+			DOMAIN="$DOMAIN" LAN_DEV="$LAN_DEV" WAN_DEV="$WAN_DEV" \
+				ULA_ADDR="$ula_address" ULA_PREFIX="$ula_prefix" \
+				GUA_ADDR="$gua_address" GUA_PREFIX="$gua_prefix" \
+				/bin/sh "$script"
+		fi
+	done
 fi
+ 
 
 #Trap service stop
 #terminate() {
