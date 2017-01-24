@@ -21,7 +21,7 @@
 . /lib/functions/network.sh
 
 #Program definitions
-readonly VERSION="1.0.2"
+readonly VERSION="1.1.0"
 readonly CONFIG_FILE="/etc/config/ip6neigh"
 readonly HOSTS_FILE="/tmp/hosts/ip6neigh"
 readonly CACHE_FILE="/tmp/ip6neigh.cache"
@@ -69,7 +69,7 @@ config_get_bool MANUF_NAMES config manuf_names 1
 config_get PROBE_EUI64 config probe_eui64 1
 config_get_bool PROBE_IID config probe_iid 1
 config_get_bool LOAD_STATIC config load_static 1
-config_get_bool LOAD_STALE config load_stale 1
+config_get FLUSH config flush 1
 config_get FW_SCRIPT config fw_script
 config_get LOG config log 0
 
@@ -468,7 +468,7 @@ process() {
 
 	#Ignore STALE events if not allowed to process them.
 	for status; do true; done
-	[ "$status" != "STALE" ] || [ "$load_stale" -gt 0 ] || return 0
+	[ "$status" != "STALE" ] || [ "$LOAD_STALE" -gt 0 ] || return 0
 
 	#Get current host entry info.
 	local name
@@ -605,8 +605,10 @@ process() {
 				logmsg "Changed NUD state to permanent for ${hostsname}."
 			fi
 			
-			#Probe other addresses related to this one if not unrouted.
-			[ "$scope" != 3 ] && probe_addresses "$name" "$addr" "$mac" "$scope"
+			#Probe other addresses related to this one if not unrouted and the global switch is enabled.
+			if [ "$AUTO_PROBE" = 1 ] && [ "$scope" != 3 ]; then
+				probe_addresses "$name" "$addr" "$mac" "$scope"
+			fi
 		;;
 	esac
 	
@@ -733,13 +735,25 @@ config_host() {
 	fi
 }
 
+#Sync with the current neighbors table.
+load_neigh() {
+	#Iterate through entries in the neighbors table.
+	#Select only reachable, stale and permanent neighbors.
+	ip -6 neigh show dev "$LAN_DEV" |
+		grep -E 'REACHABLE$|[0-9,a-f] STALE$|PERMANENT$' | sort -r |
+		while IFS= read -r line
+		do
+			process $line
+		done
+}
+
 #Clears the log file if one is set
 if [ "$LOG" != "0" ] && [ "$LOG" != "1" ]; then
 	> "$LOG"
 fi
 
 #Startup message
-logmsg "Starting ip6neigh service script for physdev $LAN_DEV with domain $DOMAIN"
+logmsg "Starting ip6neigh service script v${VERSION} for physdev $LAN_DEV with domain $DOMAIN"
 
 #Gets the IPv6 addresses from the LAN device.
 ll_cidr=$(ip -6 addr show "$LAN_DEV" scope link 2>/dev/null | grep -m 1 "inet6" | awk '{print $2}')
@@ -784,6 +798,21 @@ if [ -n "$URT_LABEL" ]; then URT_LABEL=".${URT_LABEL}" ; fi
 #Clears the output hosts file
 > "$HOSTS_FILE"
 
+#Flushes the neighbors table
+if [ "$FLUSH" -gt 0 ]; then
+	#Decode flags
+	FLUSH_PERM=0; FLUSH_REACH=0; FLUSH_STALE=0
+	[ "$(($FLUSH & 1))" -gt 0 ] && FLUSH_PERM=1
+	[ "$(($FLUSH & 2))" -gt 0 ] && FLUSH_STALE=1
+	[ "$(($FLUSH & 4))" -gt 0 ] && FLUSH_REACH=1
+	logmsg "Flushing the neighbors table. Flags: PERM=$FLUSH_PERM STALE=$FLUSH_STALE REACH=$FLUSH_REACH"
+	
+	#Flushes the corresponding neighbors
+	[ "$FLUSH_PERM" = 1 ] && ip -6 neigh flush dev "$LAN_DEV" nud perm
+	[ "$FLUSH_STALE" = 1 ] && ip -6 neigh flush dev "$LAN_DEV" nud stale
+	[ "$FLUSH_REACH" = 1 ] && ip -6 neigh flush dev "$LAN_DEV" nud reach
+fi
+
 #Header for static hosts
 echo "#Predefined SLAAC addresses" >> "$HOSTS_FILE"
 
@@ -812,14 +841,19 @@ ping6 -q -W 1 -c 3 -s 0 -I "$LAN_DEV" ff02::1 >/dev/null 2>/dev/null
 [ -n "$gua_address" ] && ping6 -q -W 1 -c 3 -s 0 -I "$gua_address" ff02::1 >/dev/null 2>/dev/null
 
 #Get current IPv6 neighbors and call process() routine.
-logmsg "Syncing hosts file with neighbors table..."
-load_stale="$LOAD_STALE"
-ip -6 neigh show dev "$LAN_DEV" |
-	grep -E 'REACHABLE$|[0-9,a-f] STALE$|PERMANENT$' | sort -r |
-	while IFS= read -r line
-	do
-		process $line
-	done
+#Run first round with auto-probe global switch enabled.
+logmsg "Syncing the hosts file with the neighbors table... Round #1"
+LOAD_STALE=1
+AUTO_PROBE=1
+load_neigh
+
+#If some auto-probe is enable, run one more round for detecting the new neighbors after ping6.
+if [ "$PROBE_EUI64" -gt 0 ] || [ "$PROBE_IID" -gt 0 ]; then
+	logmsg "Syncing the hosts file with the neighbors table... Round #2"
+	#This time it doesn't have to probe addresses again.
+	AUTO_PROBE=0
+	load_neigh
+fi
 	
 #Check if there are custom scripts to be runned.
 if [ -n "$FW_SCRIPT" ]; then
@@ -844,7 +878,8 @@ fi
 
 #Infinite main loop. Keeps monitoring changes in IPv6 neighbor's reachability status and call process() routine.
 logmsg "Monitoring changes in the neighbor's table..."
-load_stale=0
+LOAD_STALE=0
+AUTO_PROBE=1
 ip -6 monitor neigh dev "$LAN_DEV" |
 	while IFS= read -r line
 	do

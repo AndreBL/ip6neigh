@@ -71,10 +71,12 @@ config ip6neigh 'config'
 	# 0=disabled, 1=enabled. Default: '1'
 	#option load_static	'0'
 	
-	# Enable loading of stale neighbors from the neighbors table on startup. If
-	# disabled, only reachable and permanent neighbors will be loaded on startup.
-	# 0=disabled, 1=enabled. Default: '1'
-	#option load_stale	'0'
+	# Flush the neighbors table on startup. Add together the values corresponding
+	# to each NUD status.
+	# 1=PERMANENT, 2=STALE, 4=REACHABLE
+	# Example: Flush PERMANENT and STALE neighbors on startup: option flush '3'
+	# Default: '1'
+	#option flush	'1'
 	
 	# List of user firewall script files. If defined, ip6neigh will call these
 	# scripts upon start, after populating the hosts file with predefined hosts
