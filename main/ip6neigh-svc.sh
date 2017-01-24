@@ -21,7 +21,7 @@
 . /lib/functions/network.sh
 
 #Program definitions
-readonly VERSION="1.0.1"
+readonly VERSION="1.0.2"
 readonly CONFIG_FILE="/etc/config/ip6neigh"
 readonly HOSTS_FILE="/tmp/hosts/ip6neigh"
 readonly CACHE_FILE="/tmp/ip6neigh.cache"
@@ -32,10 +32,10 @@ readonly TEMP_FILE="/tmp/ip6neigh.tmp"
 if [ "$1" != "-s" ]; then
 	echo "ip6neigh Service Script v${VERSION}"
 	echo -e
-	echo "This script is intended to be run only by its init script /etc/init.d/ip6neigh."
+	echo "This script is intended to be run only by its init script."
 	echo "If you want to start ip6neigh, type:"
 	echo -e
-	echo "/etc/init.d/ip6neigh start"
+	echo "ip6neigh start"
 	echo -e
 	
 	exit 1

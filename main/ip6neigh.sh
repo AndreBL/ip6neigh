@@ -16,11 +16,12 @@
 #
 #	by André Lange & Craig Miller	Jan 2017
 
-readonly VERSION="1.0.2"
+readonly VERSION="1.1.0"
 
 readonly HOSTS_FILE="/tmp/hosts/ip6neigh"
 readonly CACHE_FILE="/tmp/ip6neigh.cache"
 readonly SERVICE_NAME="ip6neigh-svc.sh"
+readonly SHARE_DIR="/usr/share/ip6neigh/"
 
 
 #Display help text
@@ -32,6 +33,7 @@ display_help() {
 	echo -e "Available commands:"
 	echo -e "\t{ start | restart | stop }"
 	echo -e "\t{ enable | disable }"
+	echo -e "\toui\t{ download }"
 	echo -e "\tlist\t[ all | sta[tic] | dis[covered] ]"
 	echo -e "\tname\t{ ADDRESS }"
 	echo -e "\taddress\t{ NAME } [ 1 ]"
@@ -39,7 +41,7 @@ display_help() {
 	echo -e "\thost\t{ NAME | ADDRESS }"
 	echo -e "\twhois\t{ ADDRESS | MAC | NAME }"
 	echo -e
-	echo -e "Typing shortcuts: rst lst addr hst who whos"
+	echo -e "Typing shortcuts: rst downl lst addr hst who whos"
 	exit 1
 }
 
@@ -250,6 +252,44 @@ whois_this() {
 	fi
 }
 
+#OUI related commands
+oui_cmd() {
+	case "$1" in
+		#Download OUI database
+		downl*) oui_download;;
+		
+		#Invalid parameter
+		*) display_help;;
+	esac
+}
+
+#Download OUI database
+oui_download() {
+	echo "Downloading Nmap MAC prefixes..."
+	wget -O '/tmp/oui-raw.txt' 'http://linuxnet.ca/ieee/oui/nmap-mac-prefixes' || exit 2
+
+	echo -e "\nApplying filters..."
+
+	cat /tmp/oui-raw.txt |
+		tr '\t' ' ' |
+		cut -d ' ' -f1-2 |
+		grep "^[^#]" |
+		sort -t' ' -k1 |
+		sed 's/[^[0-9,a-z,A-Z]]*//g' \
+	> /tmp/oui-filt.txt
+
+	rm /tmp/oui-raw.txt
+
+	echo "Compressing database..."
+	mv /tmp/oui-filt.txt /tmp/oui
+	gzip -f /tmp/oui || exit 3
+
+	echo "Moving the file..."
+	mv /tmp/oui.gz "$SHARE_DIR" || exit 4
+
+	echo -e "\nThe new compressed OUI database file was successfully moved to: ${SHARE_DIR}oui.gz"
+}
+
 #This script file
 CMD="$0"
 
@@ -266,5 +306,6 @@ case "$1" in
 	'mac')				show_mac "$2";;
 	'host'|'hst')		host_cmd "$2" "$3";;
 	'whois'|'whos'|'who') whois_this "$2";;
+	'oui') oui_cmd "$2";;
 	*)					display_help;;
 esac
