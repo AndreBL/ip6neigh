@@ -43,6 +43,10 @@ config ip6neigh 'config'
 	# Defaults to 'PUB' if network has ULA prefix and no label if network does
 	# not have ULA prefix.
 	#option gua_label	'PUB'
+	
+	# Label for addresses with prefix that does not match either the link-local
+	# prefix or the ULA or GUA prefix of the router's LAN interface.
+	# Default: 'UNROUTED'
 
 	# Secondary label for temporary (RFC 4941) address. Will also be applied
 	# to addresses with Semantically Opaque Interface Identifiers (RFC 7217).
