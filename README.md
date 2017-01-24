@@ -49,11 +49,10 @@ IPv6 addresses are difficult to remember. DNS provides an abstraction layer, so 
 	Creating directory /usr/share/ip6neigh/
 	Downloading ip6neigh-setup.sh
 	Downloading main/ip6neigh-svc.sh
+	Downloading main/ip6neigh.sh
 	Downloading etc/init.d/ip6neigh
 	Downloading etc/hotplug.d/iface/30-ip6neigh
 	Downloading etc/config/ip6neigh
-	Downloading extra/ip6neigh-oui-download.sh
-	Downloading extra/ip6neigh
 	
 	The downloaded example config file will be moved to /etc/config/ip6neigh.example.
 	Removing directory tree /tmp/ip6neigh/
@@ -62,7 +61,7 @@ IPv6 addresses are difficult to remember. DNS provides an abstraction layer, so 
 	
 	Run the following command if you want to download an offline OUI lookup database:
 
-		ip6neigh-oui-download
+		ip6neigh oui download
 
 	Start ip6neigh with:
 
@@ -233,11 +232,11 @@ Verbose style output for helping to trace a device's SLAAC activity. `whois ipv6
 ## Installing MAC OUI lookup feature
 `ip6neigh-svc.sh` can use an offline MAC address OUI lookup, if the file `oui.gz` is present. This makes names more readable for clients which do not send their hostname (e.g. the Chromebook) when making a DHCP request.
 
-To install, run `ip6neigh-oui-download` tool, which will install oui.gz for offline oui lookup.
+To install, run `ip6neigh oui download` command, which will install oui.gz for offline oui lookup.
 
 
 ```
-# ip6neigh-oui-download 
+# ip6neigh oui download 
 Downloading Nmap MAC prefixes...
 Connecting to linuxnet.ca (24.222.55.20:80)
 oui-raw.txt          100% |***********************************************************************|   552k  0:00:00 ETA
@@ -246,7 +245,7 @@ Applying filters...
 Compressing database...
 Moving the file...
 
-The new compressed OUI database file is at: /usr/share/ip6neigh/oui.gz
+The new compressed OUI database file was successfully moved to: /usr/share/ip6neigh/oui.gz
 ```
 
 Hosts which do not send their hostname (e.g. Unknown-9BA.LL.lan) will now have an OUI manufacterer as part of the name, such as Speed-9BA.LL.lan (Speed is a Speed Dragon Multimedia Limited MAC device).
@@ -310,7 +309,7 @@ In order to use the LuCI web interface, one must install `luci-app-commands`
 
 ip6neigh is designed to operate in a dual-stack network with both IPv4 and IPv6 running. It will collect host names and return them when queried by DNS.
 
-ip6neigh relies on DHCPv4 client to report its hostname (option 12) or DHCPv6 client option 39. If the client does not report the hostname, then an "Unknown-XXX" name will be applied with *XXX* as the last three hex digits of the MAC address. If the offline MAC OUI lookup has been activated (by running the script  ip6neigh-oui-download), then the MAC OUI manufacturer name will be used instead of Unknown.
+ip6neigh relies on DHCPv4 client to report its hostname (option 12) or DHCPv6 client option 39. If the client does not report the hostname, then an "Unknown-XXX" name will be applied with *XXX* as the last three hex digits of the MAC address. If the offline MAC OUI lookup has been activated (by running the command ip6neigh oui download), then the MAC OUI manufacturer name will be used instead of Unknown.
 
 Names will be discovered in the following order (and priority):
 
