@@ -16,12 +16,13 @@
 #
 #	by André Lange & Craig Miller	Jan 2017
 
-readonly VERSION="1.1.0"
+readonly VERSION="1.2.0"
 
 readonly HOSTS_FILE="/tmp/hosts/ip6neigh"
 readonly CACHE_FILE="/tmp/ip6neigh.cache"
 readonly SERVICE_NAME="ip6neigh-svc.sh"
 readonly SHARE_DIR="/usr/share/ip6neigh/"
+readonly OUI_FILE="${SHARE_DIR}oui.gz"
 
 
 #Display help text
@@ -33,15 +34,15 @@ display_help() {
 	echo -e "Available commands:"
 	echo -e "\t{ start | restart | stop }"
 	echo -e "\t{ enable | disable }"
-	echo -e "\toui\t{ download }"
-	echo -e "\tlist\t[ all | sta[tic] | dis[covered] ]"
+	echo -e "\tlist\t[ all | static | discovered | host NAME ]"
 	echo -e "\tname\t{ ADDRESS }"
 	echo -e "\taddress\t{ NAME } [ 1 ]"
 	echo -e "\tmac\t{ NAME | ADDRESS }"
+	echo -e "\toui\t{ MAC | download }"
 	echo -e "\thost\t{ NAME | ADDRESS }"
-	echo -e "\twhois\t{ ADDRESS | MAC | NAME }"
+	echo -e "\twhois\t{ ADDRESS | MAC }"
 	echo -e
-	echo -e "Typing shortcuts: rst downl lst addr hst who whos"
+	echo -e "Typing shortcuts: rst downl lst sta dis addr hst who whos"
 	exit 1
 }
 
@@ -112,6 +113,13 @@ list_hosts() {
 			awk "NR>${ln}"' {printf "%-30s %s %s\n",$2,$1,$3}' "$HOSTS_FILE" |
 				sort
 		;;
+		#Addresses from a specific host
+		host|hst)
+			local host=$(echo "$2" | cut -d '.' -f1)
+			grep -i -E " ${host}(\.|$)" "$HOSTS_FILE" |
+				awk '{printf "%-30s %s %s\n",$2,$1,$3}' |
+				sort
+		;;
 		#All hosts with comments
 		'')
 			echo "#Predefined hosts"
@@ -179,14 +187,15 @@ show_name() {
 show_mac() {
 	check_running
 	check_files
-	
 	local name
 	
+
 	#Check if it's address or name.
 	echo "$1" | grep -q ':'
 	if [ "$?" = 0 ]; then
 		#It's an address.
-		name=$(grep -m 1 -i "^$1 " "$HOSTS_FILE" |
+		name=$(
+			grep -m 1 -i "^$1 " "$HOSTS_FILE" |
 			cut -d ' ' -f2 |
 			cut -d '.' -f1
 		)
@@ -194,6 +203,8 @@ show_mac() {
 		#It's a simple name or FQDN.
 		name=$(echo "$1" | cut -d '.' -f1)
 	fi
+	
+	[ -n "$name" ] || exit 3
 	
 	#Get the MAC address from the cache file.
 	grep -m 1 -i " ${name}$" "$CACHE_FILE" |
@@ -229,38 +240,18 @@ whois_this() {
 	check_running
 	check_files
 	
-	#Check if it's an address
-	echo "$1" | grep -q ':'
+	#Check if it's a MAC address.
+	echo "$1" | grep -q '..:..:..:..:..:..'
 	if [ "$?" = 0 ]; then
-		#Check if it's a MAC address.
-		echo "$1" | grep -q '..:..:..:..:..:..'
-		if [ "$?" = 0 ]; then
-			#MAC address. Get name from the cache file.
-			grep -m 1 -i "^$1 " "$CACHE_FILE" |
-				awk '{printf "%s is %s\n",$1,$3}'
-		else
-			#IPv6 address. Get name from the hosts file.
-			grep -m 1 -i "^$1 " "$HOSTS_FILE" |
-				cut -d '.' -f1 |
-				awk '{printf "%s belongs to %s\n",$1,$2}'
-		fi
+		#MAC address. Get name from the cache file.
+		grep -m 1 -i "^$1 " "$CACHE_FILE" |
+			awk '{printf "%s is %s\n",$1,$3}'
 	else
-		#Name. Get the addresses from the hosts file.
-		grep -i -E " $1(\.|$)" "$HOSTS_FILE" |
-			awk '{printf "%-30s %s %s\n",$2,$1,$3}' |
-			sort
+		#IPv6 address. Get name from the hosts file.
+		grep -m 1 -i "^$1 " "$HOSTS_FILE" |
+			cut -d '.' -f1 |
+			awk '{printf "%s belongs to %s\n",$1,$2}'
 	fi
-}
-
-#OUI related commands
-oui_cmd() {
-	case "$1" in
-		#Download OUI database
-		downl*) oui_download;;
-		
-		#Invalid parameter
-		*) display_help;;
-	esac
 }
 
 #Download OUI database
@@ -290,6 +281,68 @@ oui_download() {
 	echo -e "\nThe new compressed OUI database file was successfully moved to: ${SHARE_DIR}oui.gz"
 }
 
+#Searches for the OUI of the MAC in a manufacturer list.
+oui_name() {
+	#Fails if OUI file does not exist.
+	[ -f "$OUI_FILE" ] || return 1
+	
+	#Get MAC and separates OUI part.
+	local mac=$(echo "$2" | tr -d ':')
+	local oui="${mac:0:6}"
+	
+	#Check if the MAC is locally administered.
+	if [ "$((0x${oui:0:2} & 0x02))" != 0 ]; then
+		#Returns LocAdmin as name and success.
+		eval "$1='LocAdmin'"
+		return 0
+	fi
+
+	#Searches for the OUI in the database.
+	local reg=$(gunzip -c "$OUI_FILE" | grep -i -m 1 "^$oui")
+	local oname="${reg:6}"
+	
+	#Check if found.
+	if [ -n "$oname" ]; then
+		#Returns the manufacturer name and success code.
+		eval "$1='$oname'"
+		return 0
+	fi
+
+	#Manufacturer not found. Returns fail code.
+	return 2
+}
+
+#Display manufacturer name
+oui_manufacturer() {
+	#Perform OUI lookup
+	local manuf
+	oui_name manuf "$1"
+	case "$?" in
+		#Success
+		0) echo "$manuf";;
+		
+		#Database not found
+		1) >&2 echo "The OUI database is not installed. Please run ip6neigh oui download.";;
+		
+		#Manufacturer not found
+		2) echo "Unknown";;
+	esac
+}
+
+#OUI related commands
+oui_cmd() {
+	case "$1" in
+		#Download OUI database
+		downl*) oui_download;;
+		
+		#Display manufacturer name
+		??:??:??:??:??:??) oui_manufacturer "$1";;
+		
+		#Invalid parameter
+		*) display_help;;
+	esac
+}
+
 #This script file
 CMD="$0"
 
@@ -300,7 +353,7 @@ case "$1" in
 	'restart'|'rst')	restart_service;;
 	'enable')			enable_service;;
 	'disable')			disable_service;;
-	'list'|'lst')		list_hosts "$2";;
+	'list'|'lst')		list_hosts "$2" "$3";;
 	'address'|'addr')	show_address "$2" "$3";;
 	'name')				show_name "$2";;
 	'mac')				show_mac "$2";;
