@@ -16,7 +16,7 @@
 #
 #	by André Lange & Craig Miller	Jan 2017
 
-readonly VERSION="1.2.0"
+readonly VERSION="1.3.0"
 
 readonly HOSTS_FILE="/tmp/hosts/ip6neigh"
 readonly CACHE_FILE="/tmp/ip6neigh.cache"
@@ -34,15 +34,15 @@ display_help() {
 	echo -e "Available commands:"
 	echo -e "\t{ start | restart | stop }"
 	echo -e "\t{ enable | disable }"
-	echo -e "\tlist\t[ all | static | discovered | host NAME ]"
+	echo -e "\tlist\t[ all | static | discovered | host HOSTNAME]"
 	echo -e "\tname\t{ ADDRESS }"
-	echo -e "\taddress\t{ NAME } [ 1 ]"
-	echo -e "\tmac\t{ NAME | ADDRESS }"
+	echo -e "\taddress\t{ FQDN } [ 1 ]"
+	echo -e "\tmac\t{ HOSTNAME | ADDRESS }"
 	echo -e "\toui\t{ MAC | download }"
-	echo -e "\thost\t{ NAME | ADDRESS }"
-	echo -e "\twhois\t{ ADDRESS | MAC }"
+	echo -e "\tresolve\t{ FQDN | ADDRESS }"
+	echo -e "\twhois\t{ HOSTNAME | ADDRESS | MAC }"
 	echo -e
-	echo -e "Typing shortcuts: rst downl lst sta dis addr hst who whos"
+	echo -e "Typing shortcuts: rst lst sta dis hst addr downl res who whos"
 	exit 1
 }
 
@@ -134,11 +134,6 @@ list_hosts() {
 	esac
 }
 
-#Replaces '.' with '\.' in FQDN for not confusing grep.
-escape_dots() {
-	eval "$1=$(echo "'$2'" | sed 's/\./\\\./g')"
-}
-
 #Loads the domain name config.
 load_domain() {
 	DOMAIN=$(uci get ip6neigh.config.domain 2>/dev/null)
@@ -148,25 +143,55 @@ load_domain() {
 	if [ -z "$DOMAIN" ]; then DOMAIN='lan'; fi
 }
 
+#Format FQDN for grep.
+format_fqdn() {
+	load_domain
+	
+	#Check FQDN
+	local ffqdn="$2"
+	#Ends with .lan ?
+	echo "$2" | grep -q "\.$DOMAIN"
+	if [ "$?" = 0 ]; then
+		#Yes. Multiple labels ?
+		echo "$2" | grep -q ".*\..*\.$DOMAIN"
+		if [ "$?" != 0 ]; then
+			#No. It only has one and it must be removed.
+			ffqdn=$(echo "$2" | sed -r 's/(.*)\..*/\1/')
+		fi
+	else
+		#No. Has any label ?
+		echo "$2" | grep -q '\.'
+		if [ "$?" = 0 ]; then
+			#Yes and is not .lan. Must add .lan in the end.
+			ffqdn="${2}.${DOMAIN}"
+		fi
+	fi
+	
+	#Escape dots
+	ffqdn=$(echo "$ffqdn" | sed 's/\./\\\./g')
+	
+	#Returns the formatted FQDN.
+	eval "$1='$ffqdn'"
+}
+
 #Displays the addresses for the supplied name
 show_address() {
 	check_running
 	check_files
 	
-	#Prepare name for grep
+	#Check FQDN
 	local name
-	escape_dots name "$1"
-	load_domain
+	format_fqdn name "$1"
 	
 	case "$2" in
 		#Any number of addresses 
 		'')
-			grep -i -E " ${name}$| ${name}\.${DOMAIN}$" "$HOSTS_FILE" |
+			grep -i " ${name}$" "$HOSTS_FILE" |
 				cut -d ' ' -f1
 		;;
 		#Limit to one address
 		'1')
-			grep -m 1 -i -E " ${name}$| ${name}\.${DOMAIN}$" "$HOSTS_FILE" |
+			grep -m 1 -i " ${name}$" "$HOSTS_FILE" |
 				cut -d ' ' -f1
 		;;
 		#Invalid parameter
@@ -189,7 +214,6 @@ show_mac() {
 	check_files
 	local name
 	
-
 	#Check if it's address or name.
 	echo "$1" | grep -q ':'
 	if [ "$?" = 0 ]; then
@@ -212,7 +236,7 @@ show_mac() {
 }
 
 #Resolves name to address or address to name.
-host_cmd() {
+resolve_cmd() {
 	check_running
 	check_files
 	
@@ -223,14 +247,11 @@ host_cmd() {
 		grep -m 1 -i "^$1 " "$HOSTS_FILE" |
 			awk '{printf "%s is named %s\n",$1,$2}'
 	else
-		#It's a name.
-		load_domain	
-		
 		#Prepare name for grep
 		local name
-		escape_dots name "$1"
+		format_fqdn name "$1"
 
-		grep -i -E " ${name}$| ${name}\.${DOMAIN}$" "$HOSTS_FILE" |
+		grep -i " ${name}$" "$HOSTS_FILE" |
 			awk '{printf "%s has address %s\n",$2,$1}'
 	fi
 }
@@ -240,18 +261,61 @@ whois_this() {
 	check_running
 	check_files
 	
-	#Check if it's a MAC address.
-	echo "$1" | grep -q '..:..:..:..:..:..'
+	local host
+	local names
+	local mac
+	local manuf
+	local reg
+	
+	#Check if it's an address.
+	echo "$1" | grep -q ':'
 	if [ "$?" = 0 ]; then
-		#MAC address. Get name from the cache file.
-		grep -m 1 -i "^$1 " "$CACHE_FILE" |
-			awk '{printf "%s is %s\n",$1,$3}'
+		#Check if it's a MAC address.
+		echo "$1" | grep -q '..:..:..:..:..:..'
+		if [ "$?" = 0 ]; then
+			#MAC address. Get name from the cache file.
+			reg=$(grep -m 1 -i "^$1 " "$CACHE_FILE")
+			mac=$(echo "$reg" | cut -d ' ' -f1)
+			host=$(echo "$reg" | cut -d ' ' -f3)
+		else
+			#IPv6 address. Get name from the hosts file.
+			host=$(
+				grep -m 1 -i "^$1 " "$HOSTS_FILE" |
+				cut -d ' ' -f2 |
+				cut -d '.' -f1
+			)
+			
+			mac=$(
+				grep -m 1 -i " $host" "$CACHE_FILE" |
+				cut -d ' ' -f1
+			)
+		fi
 	else
-		#IPv6 address. Get name from the hosts file.
-		grep -m 1 -i "^$1 " "$HOSTS_FILE" |
-			cut -d '.' -f1 |
-			awk '{printf "%s belongs to %s\n",$1,$2}'
+		#Host
+		host=$(echo "$1" | cut -d '.' -f1)
+		reg=$(grep -m 1 -i " ${host}$" "$CACHE_FILE")
+		mac=$(echo "$reg" | cut -d ' ' -f1)
+		host=$(echo "$reg" | cut -d ' ' -f3)
 	fi
+	
+	#Exit if no host was found.
+	[ -n "$host" ] || exit 3
+	
+	#Displays the output message with OUI info if available.
+	if oui_name manuf "$mac"; then
+		echo -e "Hostname: $host\t\tMAC: $mac\t\tOUI: $manuf"
+	else	
+		echo -e "Hostname: $host\t\tMAC: $mac"
+	fi
+	
+	#Displays a list of names that belong to this host.
+	names=$(
+		grep -i -E " ${host}(\.|$)" "$HOSTS_FILE" |
+		cut -d ' ' -f2 |
+		sort |
+		uniq
+	)
+	echo 'FQDNs:' $names
 }
 
 #Download OUI database
@@ -308,25 +372,21 @@ oui_name() {
 		return 0
 	fi
 
-	#Manufacturer not found. Returns fail code.
-	return 2
+	#Manufacturer not found. Returns Unknown and success code.
+	eval "$1='Unknown'"
+	return 0
 }
 
 #Display manufacturer name
 oui_manufacturer() {
 	#Perform OUI lookup
 	local manuf
-	oui_name manuf "$1"
-	case "$?" in
-		#Success
-		0) echo "$manuf";;
-		
-		#Database not found
-		1) >&2 echo "The OUI database is not installed. Please run ip6neigh oui download.";;
-		
-		#Manufacturer not found
-		2) echo "Unknown";;
-	esac
+	if oui_name manuf "$1"; then
+		echo "$manuf"
+	else
+		>&2 echo "The OUI database is not installed. Please run ip6neigh oui download."
+		exit 2
+	fi
 }
 
 #OUI related commands
@@ -357,8 +417,8 @@ case "$1" in
 	'address'|'addr')	show_address "$2" "$3";;
 	'name')				show_name "$2";;
 	'mac')				show_mac "$2";;
-	'host'|'hst')		host_cmd "$2" "$3";;
+	'resolve'|'res')	resolve_cmd "$2" "$3";;
 	'whois'|'whos'|'who') whois_this "$2";;
-	'oui') oui_cmd "$2";;
+	'oui')				oui_cmd "$2";;
 	*)					display_help;;
 esac
