@@ -21,7 +21,7 @@
 . /lib/functions/network.sh
 
 #Program definitions
-readonly VERSION="1.4.1"
+readonly VERSION="1.4.2"
 readonly HOSTS_FILE="/tmp/hosts/ip6neigh"
 readonly CACHE_FILE="/tmp/ip6neigh.cache"
 readonly SERVICE_NAME="ip6neigh-svc.sh"
@@ -310,8 +310,8 @@ whois_this() {
 		echo "$1" | grep -q '..:..:..:..:..:..'
 		if [ "$?" = 0 ]; then
 			#MAC address. Get name from the cache file.
+			mac=$(echo "$1" | awk '{print tolower($0)}')
 			reg=$(grep -m 1 -i "^$1 " "$CACHE_FILE")
-			mac=$(echo "$reg" | cut -d ' ' -f1)
 			host=$(echo "$reg" | cut -d ' ' -f3)
 		else
 			#IPv6 address. Get name from the hosts file.
@@ -320,6 +320,7 @@ whois_this() {
 				cut -d ' ' -f2 |
 				cut -d '.' -f1
 			)
+			[ -n "$host" ] || exit 3
 			
 			mac=$(
 				grep -m 1 -i " $host" "$CACHE_FILE" |
@@ -330,17 +331,23 @@ whois_this() {
 		#Host
 		host=$(echo "$1" | cut -d '.' -f1)
 		reg=$(grep -m 1 -i " ${host}$" "$CACHE_FILE")
+		[ "$?" = 0 ] || exit 3
 		mac=$(echo "$reg" | cut -d ' ' -f1)
 		host=$(echo "$reg" | cut -d ' ' -f3)
 	fi
 	
-	#Exit if no host was found.
-	[ -n "$host" ] || exit 3
+	#Get the OUI info.
+	if [ -n "$mac" ]; then
+		oui_name manuf "$mac"
+	fi
 	
-	#Displays the output message with OUI info if available.
-	echo "Hostname: $host"
+	#Exit if no info was found.
+	[ -z "$host" ] && [ -z "$manuf" ] && exit 3
+	
+	#Displays the available info.
+	[ -n "$host" ] && echo "Hostname: $host"
 	echo "MAC: $mac"
-	oui_name manuf "$mac" && echo "OUI: $manuf"
+	[ -n "$manuf" ] && echo "OUI: $manuf"
 	
 	#Displays a list of names that belong to this host.
 	names=$(
@@ -349,7 +356,9 @@ whois_this() {
 		sort |
 		uniq
 	)
-	echo 'FQDN:' $names
+	[ -n "$names" ] && echo 'FQDN:' $names
+	
+	return 0
 }
 
 #Download OUI database
