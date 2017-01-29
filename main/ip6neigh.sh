@@ -21,7 +21,7 @@
 . /lib/functions/network.sh
 
 #Program definitions
-readonly VERSION="1.4.0"
+readonly VERSION="1.4.1"
 readonly HOSTS_FILE="/tmp/hosts/ip6neigh"
 readonly CACHE_FILE="/tmp/ip6neigh.cache"
 readonly SERVICE_NAME="ip6neigh-svc.sh"
@@ -338,11 +338,9 @@ whois_this() {
 	[ -n "$host" ] || exit 3
 	
 	#Displays the output message with OUI info if available.
-	if oui_name manuf "$mac"; then
-		echo -e "Hostname: $host\t\tMAC: $mac\t\tOUI: $manuf"
-	else	
-		echo -e "Hostname: $host\t\tMAC: $mac"
-	fi
+	echo "Hostname: $host"
+	echo "MAC: $mac"
+	oui_name manuf "$mac" && echo "OUI: $manuf"
 	
 	#Displays a list of names that belong to this host.
 	names=$(
@@ -351,7 +349,7 @@ whois_this() {
 		sort |
 		uniq
 	)
-	echo 'FQDNs:' $names
+	echo 'FQDN:' $names
 }
 
 #Download OUI database
