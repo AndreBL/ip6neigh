@@ -16,14 +16,17 @@
 #
 #	by André Lange & Craig Miller	Jan 2017
 
-readonly VERSION="1.3.0"
+#Dependencies
+. /lib/functions.sh
+. /lib/functions/network.sh
 
+#Program definitions
+readonly VERSION="1.4.0"
 readonly HOSTS_FILE="/tmp/hosts/ip6neigh"
 readonly CACHE_FILE="/tmp/ip6neigh.cache"
 readonly SERVICE_NAME="ip6neigh-svc.sh"
 readonly SHARE_DIR="/usr/share/ip6neigh/"
 readonly OUI_FILE="${SHARE_DIR}oui.gz"
-
 
 #Display help text
 display_help() {
@@ -34,7 +37,7 @@ display_help() {
 	echo -e "Available commands:"
 	echo -e "\t{ start | restart | stop }"
 	echo -e "\t{ enable | disable }"
-	echo -e "\tlist\t[ all | static | discovered | host HOSTNAME]"
+	echo -e "\tlist\t[ all | static | discovered | active | host HOSTNAME ]"
 	echo -e "\tname\t{ ADDRESS }"
 	echo -e "\taddress\t{ FQDN } [ 1 ]"
 	echo -e "\tmac\t{ HOSTNAME | ADDRESS }"
@@ -42,7 +45,7 @@ display_help() {
 	echo -e "\tresolve\t{ FQDN | ADDRESS }"
 	echo -e "\twhois\t{ HOSTNAME | ADDRESS | MAC }"
 	echo -e
-	echo -e "Typing shortcuts: rst lst sta dis hst addr downl res who whos"
+	echo -e "Typing shortcuts: rst lst sta dis act hst addr downl res who whos"
 	exit 1
 }
 
@@ -88,6 +91,23 @@ disable_service() {
 	/etc/init.d/ip6neigh disable
 }
 
+#Loads UCI configuration.
+load_config() {
+	reset_cb
+	config_load ip6neigh
+	config_get LAN_IFACE config lan_iface lan
+	config_get DOMAIN config domain
+
+	#Gets the physical devices
+	network_get_physdev LAN_DEV "$LAN_IFACE"
+
+	#Gets DNS domain from /etc/config/dhcp if not defined in ip6neigh config. Defaults to 'lan'.
+	if [ -z "$DOMAIN" ]; then
+		DOMAIN=$(uci get dhcp.@dnsmasq[0].domain 2>/dev/null)
+	fi
+	if [ -z "$DOMAIN" ]; then DOMAIN="lan"; fi
+}
+
 #Prints the hosts file in a user friendly format.
 list_hosts() {
 	check_running
@@ -100,33 +120,58 @@ list_hosts() {
 		#All hosts without comments or blank lines
 		all)
 			grep '^[^#]' "$HOSTS_FILE" |
-				awk '{printf "%-30s %s %s\n",$2,$1,$3}' |
+				awk '{printf "%-30s %s\n",$2,$1}' |
 				sort
 		;;
 		#Only static hosts
 		sta*)
-			awk "NR>1&&NR<(${ln}-1)"' {printf "%-30s %s %s\n",$2,$1,$3}' "$HOSTS_FILE" |
+			awk "NR>1&&NR<(${ln}-1)"' {printf "%-30s %s\n",$2,$1}' "$HOSTS_FILE" |
 				sort
 		;;
 		#Only discovered hosts
 		dis*)
-			awk "NR>${ln}"' {printf "%-30s %s %s\n",$2,$1,$3}' "$HOSTS_FILE" |
+			awk "NR>${ln}"' {printf "%-30s %s\n",$2,$1}' "$HOSTS_FILE" |
 				sort
+		;;
+		#REACHABLE and STALE
+		act*)
+			load_config
+			
+			#Iterate through entries in the neighbors table and populates a temp file.
+			local addr
+			local reg
+			> /tmp/ip6neigh.lst
+			ip -6 neigh show dev "$LAN_DEV" nud reach |
+				grep -E 'REACHABLE$|[0-9,a-f] STALE$' |
+				cut -d ' ' -f1 |
+				while IFS= read -r addr
+				do
+					reg=$(grep -m 1 "^$addr " "$HOSTS_FILE")
+					if [ -n "$reg" ]; then
+						echo "$reg" |
+							awk '{printf "%-30s %s\n",$2,$1}' \
+							>> /tmp/ip6neigh.lst
+					fi
+				done
+
+				#Prints the temp file.
+				sort /tmp/ip6neigh.lst
+				rm /tmp/ip6neigh.lst			
 		;;
 		#Addresses from a specific host
 		host|hst)
 			local host=$(echo "$2" | cut -d '.' -f1)
 			grep -i -E " ${host}(\.|$)" "$HOSTS_FILE" |
-				awk '{printf "%-30s %s %s\n",$2,$1,$3}' |
+				awk '{printf "%-30s %s\n",$2,$1}' |
 				sort
 		;;
 		#All hosts with comments
 		'')
 			echo "#Predefined hosts"
-			awk "NR>1&&NR<(${ln}-1)"' {printf "%-30s %s %s\n",$2,$1,$3}' "$HOSTS_FILE" |
+			awk "NR>1&&NR<(${ln}-1)"' {printf "%-30s %s\n",$2,$1}' "$HOSTS_FILE" |
 				sort
 			echo -e "\n#Discovered hosts"
-			awk "NR>${ln}"' {printf "%-30s %s %s\n",$2,$1,$3}' "$HOSTS_FILE" |
+			awk "NR>${ln}"' {printf "%-30s %s\n",$2,$1}' "$HOSTS_FILE" |
 				sort
 		;;
 		#Invalid parameter
@@ -134,18 +179,9 @@ list_hosts() {
 	esac
 }
 
-#Loads the domain name config.
-load_domain() {
-	DOMAIN=$(uci get ip6neigh.config.domain 2>/dev/null)
-	if [ -z "$DOMAIN" ]; then
-		DOMAIN=$(uci get dhcp.@dnsmasq[0].domain 2>/dev/null)
-	fi
-	if [ -z "$DOMAIN" ]; then DOMAIN='lan'; fi
-}
-
 #Format FQDN for grep.
 format_fqdn() {
-	load_domain
+	load_config
 	
 	#Check FQDN
 	local ffqdn="$2"
