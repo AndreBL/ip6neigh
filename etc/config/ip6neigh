@@ -47,7 +47,7 @@ config ip6neigh 'config'
 	# Label for addresses with prefix that does not match either the link-local
 	# prefix or the ULA or GUA prefix of the router's LAN interface.
 	# Default: 'UNROUTED'
-	#option urt_label	'UNROUTED'
+	#option unrouted_label	'UNROUTED'
 
 	# Secondary label for temporary (RFC 4941) address. Will also be applied
 	# to addresses with Semantically Opaque Interface Identifiers (RFC 7217).
