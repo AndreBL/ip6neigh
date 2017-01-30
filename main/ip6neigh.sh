@@ -21,7 +21,7 @@
 . /lib/functions/network.sh
 
 #Program definitions
-readonly VERSION="1.4.2"
+readonly VERSION="1.4.3"
 readonly HOSTS_FILE="/tmp/hosts/ip6neigh"
 readonly CACHE_FILE="/tmp/ip6neigh.cache"
 readonly SERVICE_NAME="ip6neigh-svc.sh"
@@ -141,7 +141,7 @@ list_hosts() {
 			local addr
 			local reg
 			> /tmp/ip6neigh.lst
-			ip -6 neigh show dev "$LAN_DEV" nud reach |
+			ip -6 neigh show dev "$LAN_DEV" |
 				grep -E 'REACHABLE$|[0-9,a-f] STALE$' |
 				cut -d ' ' -f1 |
 				while IFS= read -r addr
