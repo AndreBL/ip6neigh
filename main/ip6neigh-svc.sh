@@ -21,7 +21,7 @@
 . /lib/functions/network.sh
 
 #Program definitions
-readonly VERSION="1.1.1"
+readonly VERSION="1.1.2"
 readonly CONFIG_FILE="/etc/config/ip6neigh"
 readonly HOSTS_FILE="/tmp/hosts/ip6neigh"
 readonly CACHE_FILE="/tmp/ip6neigh.cache"
@@ -62,7 +62,7 @@ config_get LL_LABEL config ll_label LL
 config_get ULA_label config ula_label
 config_get gua_label config gua_label
 config_get TMP_LABEL config tmp_label TMP
-config_get URT_LABEL config unrouted_label UNROUTED
+config_get URT_LABEL config unrouted_label
 config_get_bool DHCPV6_NAMES config dhcpv6_names 1
 config_get_bool DHCPV4_NAMES config dhcpv4_names 1
 config_get_bool MANUF_NAMES config manuf_names 1
@@ -554,7 +554,7 @@ process() {
 				
 				#Sets scope ID to LL
 				scope=0
-			elif [ "$prefix" = "$ula_prefix" ]; then
+			elif [ "$prefix" = "$ula_prefix" ] || [ -z "$URT_LABEL" -a "${addr:0:2}" = "fd" ] ; then
 				#Is ULA. Append corresponding label.
 				suffix="${ULA_LABEL}"
 				
@@ -566,7 +566,7 @@ process() {
 
 				#Sets scope ID to ULA
 				scope=1
-			elif [ "$prefix" = "$gua_prefix" ]; then
+			elif [ "$prefix" = "$gua_prefix" ] || [ -z "$URT_LABEL" ]; then
 				#The address is globally unique. Append corresponding label.
 				suffix="${GUA_LABEL}"
 

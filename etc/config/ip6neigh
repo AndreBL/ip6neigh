@@ -21,7 +21,7 @@ config ip6neigh 'config'
 	# Name to be given to the router's IPv6 addresses. Corresponding labels will
 	# be appended for each scope of address. Use '0' if you want to disable this
 	# feature. Default: 'Router'
-	#option router_name	'Router'
+	#option router_name	'0'
 
 	# When a new neighbor is discovered, auto probe for other addresses based
 	# on MAC address.
@@ -44,9 +44,9 @@ config ip6neigh 'config'
 	# not have ULA prefix.
 	#option gua_label	'PUB'
 	
-	# Label for addresses with prefix that does not match either the link-local
-	# prefix or the ULA or GUA prefix of the router's LAN interface.
-	# Default: 'UNROUTED'
+	# If defined, this label will be applied to addresses with prefix that does
+	# not match either the link-local prefix or the ULA or GUA prefix of the
+	# router's LAN interface. It is undefined by default.
 	#option unrouted_label	'UNROUTED'
 
 	# Secondary label for temporary (RFC 4941) address. Will also be applied
