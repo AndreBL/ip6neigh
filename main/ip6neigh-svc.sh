@@ -21,7 +21,7 @@
 . /lib/functions/network.sh
 
 #Program definitions
-readonly VERSION="1.1.0"
+readonly VERSION="1.1.1"
 readonly CONFIG_FILE="/etc/config/ip6neigh"
 readonly HOSTS_FILE="/tmp/hosts/ip6neigh"
 readonly CACHE_FILE="/tmp/ip6neigh.cache"
@@ -618,9 +618,9 @@ process() {
 #Adds static entry to hosts file
 add_static() {
 	local name="$1"
-	local mac="$2"
-	local addr="$3"
-	local scope="$4"
+	local addr="$2"
+	local scope="$3"
+	local mac="$4"
 	local perm="$5"
 	local suffix=""
 
@@ -725,13 +725,13 @@ config_host() {
 	#Creates hosts file entries with link-local, ULA and GUA prefixes with corresponding IIDs.
 	local addr
 	if [ -n "$ll_iid" ] && [ "$ll_iid" != "0" ]; then
-		add_static "$name" "$mac" "fe80::${ll_iid}" 0 "$perm"
+		add_static "$name" "fe80::${ll_iid}" 0 "$mac" "$perm"
 	fi
 	if [ -n "$ula_prefix" ] && [ -n "$ula_iid" ] && [ "$ula_iid" != "0" ]; then
-		add_static "$name" "$mac" "${ula_prefix}:${ula_iid}" 1 "$perm"
+		add_static "$name" "${ula_prefix}:${ula_iid}" 1 "$mac" "$perm"
 	fi
 	if [ -n "$gua_prefix" ] && [ -n "$gua_iid" ] && [ "$gua_iid" != "0" ]; then
-		add_static "$name" "$mac" "${gua_prefix}:${gua_iid}" 2 "$perm"
+		add_static "$name" "${gua_prefix}:${gua_iid}" 2 "$mac" "$perm"
 	fi
 }
 
