@@ -33,26 +33,37 @@ config ip6neigh 'config'
 	# 0=disabled, 1=enabled. Default: '1'
 	#option probe_iid	'0'
 
-	# Label for link-local addresses. Default: 'LL'
-	#option ll_label	'LL'
+	# Custom label for link-local addresses. Writing '0' clears the label.
+	# Default: 'LL'
+	#option ll_label	'0'
 
-	# Label for unique local addresses (ULA). Default is no label for ULAs.
+	# Label for LAN unique local addresses (ULA). Writing '0' clears the label.
+	# Default is no label for ULAs.
 	#option ula_label	'ULA'
-
-	# Label for globally unique addresses (GUA).
-	# Defaults to 'PUB' if network has ULA prefix and no label if network does
-	# not have ULA prefix.
-	#option gua_label	'PUB'
 	
-	# If defined, this label will be applied to addresses with prefix that does
-	# not match either the link-local prefix or the ULA or GUA prefix of the
-	# router's LAN interface. It is undefined by default.
+	# Label for unique local addresses (ULA) inherited from the WAN network.
+	# Writing '0' clears the label. Defaults to 'ULA' if the network has ULA
+	# prefix and no label if the network does not have ULA prefix.
+	#option wula_label	'0'
+
+	# Label for globally unique addresses (GUA). Writing '0' clears the label.
+	# Defaults to 'PUB' if the network has ULA or WULA prefix and no label if the
+	# network does not have neither ULA nor WULA prefix.
+	#option gua_label	'0'
+	
+	# This label will be applied to addresses with prefix that does not match
+	# either the link-local prefix or the ULA/WULA/GUA prefix of the router's LAN
+	# interface. Writing '0' clears the label. If the label is cleared, any address
+	# starting with 'fd' will be considered as ULA and any other global address will
+	# be considered as GUA (WULA distinction will also be disabled).
+	# Default: 'UNROUTED'
 	#option unrouted_label	'UNROUTED'
 
 	# Secondary label for temporary (RFC 4941) address. Will also be applied
 	# to addresses with Semantically Opaque Interface Identifiers (RFC 7217).
+	# Writing '0' clears the label.
 	# Default: 'TMP'
-	#option tmp_label	'TMP'
+	#option tmp_label	'0'
 
 	# Get names from DHCPv6 leases. 0=disabled, 1=enabled.
 	# Default: '1'

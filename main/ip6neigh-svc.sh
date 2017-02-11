@@ -21,7 +21,7 @@
 . /lib/functions/network.sh
 
 #Program definitions
-readonly VERSION="1.1.2"
+readonly VERSION="1.2.0"
 readonly CONFIG_FILE="/etc/config/ip6neigh"
 readonly HOSTS_FILE="/tmp/hosts/ip6neigh"
 readonly CACHE_FILE="/tmp/ip6neigh.cache"
@@ -58,10 +58,11 @@ config_get LAN_IFACE config lan_iface lan
 config_get WAN_IFACE config wan_iface wan6
 config_get DOMAIN config domain
 config_get ROUTER_NAME config router_name Router
-config_get LL_LABEL config ll_label LL
-config_get ULA_label config ula_label
-config_get gua_label config gua_label
-config_get TMP_LABEL config tmp_label TMP
+config_get LL_LABEL config ll_label
+config_get ULA_LABEL config ula_label
+config_get WULA_LABEL config wula_label
+config_get GUA_LABEL config gua_label
+config_get TMP_LABEL config tmp_label
 config_get URT_LABEL config unrouted_label
 config_get_bool DHCPV6_NAMES config dhcpv6_names 1
 config_get_bool DHCPV4_NAMES config dhcpv4_names 1
@@ -182,8 +183,8 @@ is_other_static() {
 	
 	#Builds match string
 	local match
-	if [ -n "$LL_LABEL" ]; then
-		match="^fe80::${iid} [^ ]*${LL_LABEL}.${DOMAIN}$"
+	if [ -n "$ll_label" ]; then
+		match="^fe80::${iid} [^ ]*${ll_label}.${DOMAIN}$"
 	else
 		match="^fe80::${iid} [^ ]*$"
 	fi
@@ -240,7 +241,8 @@ probe_addresses() {
 			#Probe same IID for different scopes than this one.
 			if [ "$scope" != 0 ]; then add_probe "fe80::${base_iid}"; fi
 			if [ "$scope" != 1 ] && [ -n "$ula_prefix" ]; then add_probe "${ula_prefix}:${base_iid}"; fi
-			if [ "$scope" != 2 ] && [ -n "$gua_prefix" ]; then add_probe "${gua_prefix}:${base_iid}"; fi
+			if [ "$scope" != 2 ] && [ -n "$wula_prefix" ]; then add_probe "${wula_prefix}:${base_iid}"; fi
+			if [ "$scope" != 3 ] && [ -n "$gua_prefix" ]; then add_probe "${gua_prefix}:${base_iid}"; fi
 		fi
 	fi
 
@@ -257,6 +259,9 @@ probe_addresses() {
 				if [ -n "$ula_prefix" ]; then add_probe "${ula_prefix}:${eui64_iid}"; fi
 			fi
 			if [ "$PROBE_EUI64" = "1" ] || [ "$scope" = 2 ]; then
+				if [ -n "$wula_prefix" ]; then add_probe "${wula_prefix}:${eui64_iid}"; fi
+			fi
+			if [ "$PROBE_EUI64" = "1" ] || [ "$scope" = 3 ]; then
 				if [ -n "$gua_prefix" ]; then add_probe "${gua_prefix}:${eui64_iid}"; fi
 			fi
 		fi
@@ -453,8 +458,10 @@ get_name() {
 	grep -q "01 ${fname}$" "$CACHE_FILE" && return 2
 
 	#Temporary name?
-	echo "$gname" | grep -q "^[^\.]*${TMP_LABEL}\."
-	[ "$?" = 0 ] && return 1
+	if [ -n "$tmp_label" ]; then
+		echo "$gname" | grep -q "^[^\.]*${tmp_label}\."
+		[ "$?" = 0 ] && return 1
+	fi
 	
 	#Existent non-temporary name
 	return 0
@@ -550,40 +557,43 @@ process() {
 			local scope
 			if [ "${addr:0:4}" = "fe80" ]; then
 				#Is link-local. Append corresponding label.
-				suffix="${LL_LABEL}"
+				suffix="${ll_label}"
 				
 				#Sets scope ID to LL
 				scope=0
-			elif [ "$prefix" = "$ula_prefix" ] || [ -z "$URT_LABEL" -a "${addr:0:2}" = "fd" ] ; then
+			elif [ "$prefix" = "$ula_prefix" ] || [ -z "$urt_label" -a "${addr:0:2}" = "fd" ] ; then
 				#Is ULA. Append corresponding label.
-				suffix="${ULA_LABEL}"
+				suffix="${ula_label}"
 				
-				#Check if interface identifier is static
-				if ! is_eui64 "$addr" && ! is_other_static "$addr"; then
-					#Interface identifier does not appear to be static. Adds temporary address label.
-					suffix="${TMP_LABEL}${suffix}"
-				fi
-
 				#Sets scope ID to ULA
 				scope=1
-			elif [ "$prefix" = "$gua_prefix" ] || [ -z "$URT_LABEL" ]; then
+			elif [ "$prefix" = "$wula_prefix" ]; then
+				#Is WAN side ULA. Append corresponding label.
+				suffix="${wula_label}"
+				
+				#Sets scope ID to WULA
+				scope=2
+			elif [ "$prefix" = "$gua_prefix" ] || [ -z "$urt_label" ]; then
 				#The address is globally unique. Append corresponding label.
-				suffix="${GUA_LABEL}"
+				suffix="${gua_label}"
 
+				#Sets scope ID to GUA
+				scope=3
+			else
+				#The address uses a prefix that is not routed to this LAN.
+				suffix="$urt_label"
+				
+				#Sets scope ID to unrouted.
+				scope=4
+			fi
+			
+			#Check if it could be a temporary address
+			if [ "$scope" -ge 1 ] && [ "$scope" -le 3 ]; then
 				#Check if interface identifier is static
 				if ! is_eui64 "$addr" && ! is_other_static "$addr"; then
 					#Interface identifier does not appear to be static. Adds temporary address label.
-					suffix="${TMP_LABEL}${suffix}"					
-				fi 
-
-				#Sets scope ID to GUA
-				scope=2
-			else
-				#The address uses a prefix that is not routed to this LAN.
-				suffix="$URT_LABEL"
-				
-				#Sets scope ID to unrouted.
-				scope=3
+					suffix="${tmp_label}${suffix}"
+				fi
 			fi
 
 			#Cat strings to generate output name
@@ -606,7 +616,7 @@ process() {
 			fi
 			
 			#Probe other addresses related to this one if not unrouted and the global switch is enabled.
-			if [ "$AUTO_PROBE" = 1 ] && [ "$scope" != 3 ]; then
+			if [ "$AUTO_PROBE" = 1 ] && [ "$scope" != 4 ]; then
 				probe_addresses "$name" "$addr" "$mac" "$scope"
 			fi
 		;;
@@ -627,13 +637,16 @@ add_static() {
 	#Decides which suffix should be added to the name.
 	case "$scope" in
 		#Link-local
-		0) if [ -n "${LL_LABEL}" ]; then suffix="${LL_LABEL}.${DOMAIN}"; fi;;
+		0) if [ -n "${ll_label}" ]; then suffix="${ll_label}.${DOMAIN}"; fi;;
 
 		#ULA
-		1) if [ -n "${ULA_LABEL}" ]; then suffix="${ULA_LABEL}.${DOMAIN}"; fi;;
+		1) if [ -n "${ula_label}" ]; then suffix="${ula_label}.${DOMAIN}"; fi;;
+		
+		#WULA
+		2) if [ -n "${wula_label}" ]; then suffix="${wula_label}.${DOMAIN}"; fi;;
 		
 		#GUA
-		2) if [ -n "${GUA_LABEL}" ]; then suffix="${GUA_LABEL}.${DOMAIN}"; fi;;
+		3) if [ -n "${gua_label}" ]; then suffix="${gua_label}.${DOMAIN}"; fi;;
 	esac
 	
 	#Writes the entry to the file
@@ -720,6 +733,7 @@ config_host() {
 	local gua_iid
 	config_get ll_iid "$1" ll_iid "$iid"
 	config_get ula_iid "$1" ula_iid "$iid"
+	config_get wula_iid "$1" wula_iid "$iid"
 	config_get gua_iid "$1" gua_iid "$iid"
 
 	#Creates hosts file entries with link-local, ULA and GUA prefixes with corresponding IIDs.
@@ -730,8 +744,11 @@ config_host() {
 	if [ -n "$ula_prefix" ] && [ -n "$ula_iid" ] && [ "$ula_iid" != "0" ]; then
 		add_static "$name" "${ula_prefix}:${ula_iid}" 1 "$mac" "$perm"
 	fi
+	if [ -n "$wula_prefix" ] && [ -n "$wula_iid" ] && [ "$wula_iid" != "0" ]; then
+		add_static "$name" "${wula_prefix}:${wula_iid}" 2 "$mac" "$perm"
+	fi
 	if [ -n "$gua_prefix" ] && [ -n "$gua_iid" ] && [ "$gua_iid" != "0" ]; then
-		add_static "$name" "${gua_prefix}:${gua_iid}" 2 "$mac" "$perm"
+		add_static "$name" "${gua_prefix}:${gua_iid}" 3 "$mac" "$perm"
 	fi
 }
 
@@ -756,41 +773,69 @@ fi
 logmsg "Starting ip6neigh service script v${VERSION} for physdev $LAN_DEV with domain $DOMAIN"
 
 #Gets the IPv6 addresses from the LAN device.
-ll_cidr=$(ip -6 addr show "$LAN_DEV" scope link 2>/dev/null | grep -m 1 "inet6" | awk '{print $2}')
-ula_cidr=$(ip -6 addr show "$LAN_DEV" scope global 2>/dev/null | grep "inet6 fd" | grep -m 1 -v "dynamic" | awk '{print $2}')
-gua_cidr=$(ip -6 addr show "$LAN_DEV" scope global noprefixroute 2>/dev/null | grep -m 1 "inet6 [^fd]" | awk '{print $2}')
+ll_cidr=$(ip -6 addr show "$LAN_DEV" scope link 2>/dev/null | grep -m 1 'inet6' | awk '{print $2}')
+ula_cidr=$(ip -6 addr show "$LAN_DEV" scope global 2>/dev/null | grep 'inet6 fd' | grep -m 1 -v 'dynamic' | awk '{print $2}')
+wula_cidr=$(ip -6 addr show "$LAN_DEV" scope global noprefixroute dynamic 2>/dev/null | grep 'inet6 fd' | awk '{print $2}')
+gua_cidr=$(ip -6 addr show "$LAN_DEV" scope global noprefixroute 2>/dev/null | grep -m 1 'inet6 [^fd]' | awk '{print $2}')
 ll_address=$(echo "$ll_cidr" | cut -d "/" -f1)
 ula_address=$(echo "$ula_cidr" | cut -d "/" -f1)
+wula_address=$(echo "$wula_cidr" | cut -d "/" -f1)
 gua_address=$(echo "$gua_cidr" | cut -d "/" -f1)
 
 #Gets the network prefixes assuming /64 subnets.
-ula_prefix=$(echo "$ula_address" | cut -d ":" -f1-4)
-gua_prefix=$(echo "$gua_address" | cut -d ":" -f1-4)
+ula_prefix=$(echo "$ula_address" | cut -d ':' -f1-4)
+wula_prefix=$(echo "$wula_address" | cut -d ':' -f1-4)
+gua_prefix=$(echo "$gua_address" | cut -d ':' -f1-4)
 
-#Decides if the GUAs should get a label based in config file and the presence of ULAs
-if [ -n "$gua_label" ]; then
-	#Use label specified in config file.
-	GUA_LABEL="$gua_label"
-	logmsg "Using custom label for GUAs: ${GUA_LABEL}"
-else
-	#No label has been specified for GUAs. Check if the network setup has ULAs.
-	if [ -n "$ula_prefix" ]; then
-		#Yes. Use default label for GUAs.
-		GUA_LABEL="PUB"
-		logmsg "Network has ULA prefix ${ula_prefix}::/64. Using default label for GUAs: ${GUA_LABEL}"
-	else
-		#No ULAs. So do not use label for GUAs.
-		GUA_LABEL=""
-		logmsg "Network does not have ULA prefix. Clearing label for GUAs."
-	fi
+#Choose default the labels based on the available prefixes
+if [ -n "$ula_prefix" ]; then
+	#ULA prefix is available. No label for ULA. WAN side ULA becomes 'ULA'
+	wula_label="ULA"
+	gua_label="PUB"
+elif [ -n "$wula_prefix" ]; then
+	#No ULA prefix. WULA is available. No label for ULA and WULA. Default for PUB.
+	gua_label="PUB"
 fi
 
+#Prefix-independent default labels
+ll_label="LL"
+tmp_label="TMP"
+urt_label="UNROUTED"
+
+#Override default labels based on user supplied options.
+if [ -n "$LL_LABEL" ]; then
+	if [ "$LL_LABEL" = '0' ]; then ll_label=""
+	else ll_label="$LL_LABEL"; fi
+fi
+if [ -n "$ULA_LABEL" ]; then
+	if [ "$ULA_LABEL" = '0' ]; then ula_label=""
+	else ula_label="$ULA_LABEL"; fi
+fi
+if [ -n "$WULA_LABEL" ]; then
+	if [ "$WULA_LABEL" = '0' ]; then wula_label=""
+	else wula_label="$WULA_LABEL"; fi
+fi
+if [ -n "$GUA_LABEL" ]; then
+	if [ "$GUA_LABEL" = '0' ]; then gua_label=""
+	else gua_label="$GUA_LABEL"; fi
+fi
+if [ -n "$TMP_LABEL" ]; then
+	if [ "$TMP_LABEL" = '0' ]; then tmp_label=""
+	else tmp_label="$TMP_LABEL"; fi
+fi
+if [ -n "$URT_LABEL" ]; then
+	if [ "$URT_LABEL" = '0' ]; then urt_label=""
+	else urt_label="$URT_LABEL"; fi
+fi
+
+
 #Adds a dot before each label
-if [ -n "$LL_LABEL" ]; then LL_LABEL=".${LL_LABEL}" ; fi
-if [ -n "$ULA_LABEL" ]; then ULA_LABEL=".${ULA_LABEL}" ; fi
-if [ -n "$GUA_LABEL" ]; then GUA_LABEL=".${GUA_LABEL}" ; fi
-if [ -n "$TMP_LABEL" ]; then TMP_LABEL=".${TMP_LABEL}" ; fi
-if [ -n "$URT_LABEL" ]; then URT_LABEL=".${URT_LABEL}" ; fi
+if [ -n "$ll_label" ]; then ll_label=".${ll_label}" ; fi
+if [ -n "$ula_label" ]; then ula_label=".${ula_label}" ; fi
+if [ -n "$wula_label" ]; then wula_label=".${wula_label}" ; fi
+if [ -n "$gua_label" ]; then gua_label=".${gua_label}" ; fi
+if [ -n "$tmp_label" ]; then tmp_label=".${tmp_label}" ; fi
+if [ -n "$urt_label" ]; then urt_label=".${urt_label}" ; fi
 
 #Clears the cache file
 > "$CACHE_FILE"
@@ -821,7 +866,8 @@ if [ -n "$ROUTER_NAME" ] && [ "$ROUTER_NAME" != "0" ]; then
 	logmsg "Generating names for the router's addresses"
 	[ -n "$ll_address" ] && add_static "$ROUTER_NAME" "$ll_address" 0
 	[ -n "$ula_address" ] && add_static "$ROUTER_NAME" "$ula_address" 1
-	[ -n "$gua_address" ] && add_static "$ROUTER_NAME" "$gua_address" 2
+	[ -n "$wula_address" ] && add_static "$ROUTER_NAME" "$wula_address" 2
+	[ -n "$gua_address" ] && add_static "$ROUTER_NAME" "$gua_address" 3
 fi
 
 #Process /etc/config/dhcp and adds static hosts.
@@ -838,6 +884,7 @@ killall -1 dnsmasq
 #Pings "all nodes" multicast address with source addresses from various scopes to speedup discovery.
 ping6 -q -W 1 -c 3 -s 0 -I "$LAN_DEV" ff02::1 >/dev/null 2>/dev/null
 [ -n "$ula_address" ] && ping6 -q -W 1 -c 3 -s 0 -I "$ula_address" ff02::1 >/dev/null 2>/dev/null
+[ -n "$wula_address" ] && ping6 -q -W 1 -c 3 -s 0 -I "$wula_address" ff02::1 >/dev/null 2>/dev/null
 [ -n "$gua_address" ] && ping6 -q -W 1 -c 3 -s 0 -I "$gua_address" ff02::1 >/dev/null 2>/dev/null
 
 #Get current IPv6 neighbors and call process() routine.
