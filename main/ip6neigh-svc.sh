@@ -21,7 +21,7 @@
 . /lib/functions/network.sh
 
 #Program definitions
-readonly VERSION="1.2.0"
+readonly VERSION="1.2.1"
 readonly CONFIG_FILE="/etc/config/ip6neigh"
 readonly HOSTS_FILE="/tmp/hosts/ip6neigh"
 readonly CACHE_FILE="/tmp/ip6neigh.cache"
@@ -469,12 +469,20 @@ get_name() {
 
 #Main routine: Process the changes in reachability status.
 process() {
-	local addr="$1"
+	local addr
 	local mac="$3"
 	local status
+	
+	#Get the address and translate delete events to FAILED.
+	if [ "$1" = 'delete' ]; then
+		addr="$2"
+		status="FAILED"
+	else 
+		addr="$1"
+		for status; do true; done
+	fi
 
 	#Ignore STALE events if not allowed to process them.
-	for status; do true; done
 	[ "$status" != "STALE" ] || [ "$LOAD_STALE" -gt 0 ] || return 0
 
 	#Get current host entry info.
