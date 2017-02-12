@@ -21,7 +21,7 @@
 . /lib/functions/network.sh
 
 #Program definitions
-readonly VERSION="1.3.0"
+readonly VERSION="1.3.1"
 readonly CONFIG_FILE="/etc/config/ip6neigh"
 readonly HOSTS_FILE="/tmp/hosts/ip6neigh"
 readonly CACHE_FILE="/tmp/ip6neigh.cache"
@@ -777,7 +777,7 @@ load_neigh() {
 
 #Trap service stop
 #terminate() {
-#	logmsg "Terminating service script."
+#	logmsg "Terminating ip6neigh"
 #	exit 0
 #}
 #trap terminate HUP INT TERM
@@ -946,8 +946,8 @@ main_service() {
 			process $line
 		done
 	
-	#This line should never be reached.
-	exit 3
+	logmsg "Terminating the main service"
+	return 0
 }
 
 #DAD NS packet snooping service
@@ -960,14 +960,17 @@ snooping_service() {
 	#Startup message
 	logmsg "Starting ip6neigh snooping service v${VERSION} for physdev $LAN_DEV"
 
+	local line
 	local addr
 	
 	#Infinite loop. Keeps listening to DAD NS packets and pings the captured addresses.
 	tcpdump -q -l -n -p -i "$LAN_DEV" 'src :: && ip6[40] == 135' 2>/dev/null |
-        awk '{print substr($11,1,length($11)-1);}' |
-		while IFS= read -r addr
+		while IFS= read -r line
 		do
-			#Ignore blank lines
+			#Get the address from the line
+			addr=$(echo $line | awk '{print substr($11,1,length($11)-1);}')
+			
+			#Ignore blank address
 			[ -n "$addr" ] || continue
 			
 			#Check if the address already exists in any hosts file
@@ -979,8 +982,8 @@ snooping_service() {
 			ping6 -q -W 1 -c 1 -s 0 -I "$LAN_DEV" "$addr" >/dev/null 2>/dev/null
 		done
 	
-	#This line should never be reached.
-	exit 3
+	logmsg "Terminating the snooping service"
+	return 0
 }
 
 #Check which service should run

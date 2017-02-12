@@ -2,7 +2,7 @@
 
 START=96
 
-readonly VERSION="1.1.0"
+readonly VERSION="1.1.1"
 readonly SBIN_PATH="/usr/sbin/"
 readonly SERVICE_NAME="ip6neigh-svc.sh"
 readonly SERVICE_SCRIPT="${SBIN_PATH}${SERVICE_NAME}"
@@ -22,6 +22,7 @@ start() {
 	local snoop=$(uci get ip6neigh.config.dad_snoop 2>/dev/null)
 
 	SERVICE_DAEMONIZE=1
+	
 	service_start "$SERVICE_SCRIPT" -s
 	[ "$snoop" = '1' ] && service_start "$SERVICE_SCRIPT" -n
 
@@ -29,7 +30,20 @@ start() {
 }
 
 stop() {
-	killall "$SERVICE_NAME" 2>/dev/null
+	local ppid
+	local cpid
+	
+	pgrep -f "$SERVICE_NAME" |
+		while IFS= read -r ppid
+		do
+			pgrep -P "$ppid" |
+				while IFS= read -r cpid
+				do
+					kill "$cpid" 2>/dev/null
+				done
+			kill "$ppid" 2>/dev/null
+		done
+
 	return 0
 }
 
