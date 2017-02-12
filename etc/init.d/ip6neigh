@@ -2,6 +2,7 @@
 
 START=96
 
+readonly VERSION="1.1.0"
 readonly SBIN_PATH="/usr/sbin/"
 readonly SERVICE_NAME="ip6neigh-svc.sh"
 readonly SERVICE_SCRIPT="${SBIN_PATH}${SERVICE_NAME}"
@@ -18,8 +19,11 @@ start() {
 	
 	[ -f "$SERVICE_SCRIPT" ] || errormsg "The main script file $SERVICE_SCRIPT is missing."
 
+	local snoop=$(uci get ip6neigh.config.dad_snoop 2>/dev/null)
+
 	SERVICE_DAEMONIZE=1
 	service_start "$SERVICE_SCRIPT" -s
+	[ "$snoop" = '1' ] && service_start "$SERVICE_SCRIPT" -n
 
 	return 0
 }

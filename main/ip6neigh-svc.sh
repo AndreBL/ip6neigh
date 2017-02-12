@@ -21,7 +21,7 @@
 . /lib/functions/network.sh
 
 #Program definitions
-readonly VERSION="1.2.1"
+readonly VERSION="1.3.0"
 readonly CONFIG_FILE="/etc/config/ip6neigh"
 readonly HOSTS_FILE="/tmp/hosts/ip6neigh"
 readonly CACHE_FILE="/tmp/ip6neigh.cache"
@@ -29,29 +29,32 @@ readonly OUI_FILE="/usr/share/ip6neigh/oui.gz"
 readonly TEMP_FILE="/tmp/ip6neigh.tmp"
 
 #Check if the user is trying to run this script on its own
-if [ "$1" != "-s" ]; then
-	echo "ip6neigh Service Script v${VERSION}"
-	echo -e
-	echo "This script is intended to be run only by its init script."
-	echo "If you want to start ip6neigh, type:"
-	echo -e
-	echo "ip6neigh start"
-	echo -e
-	
-	exit 1
-fi
+case "$1" in
+	'-s'|'-n');;
+	*)
+		echo "ip6neigh Service Script v${VERSION}"
+		echo -e
+		echo "This script is intended to be run only by its init script."
+		echo "If you want to start ip6neigh, type:"
+		echo -e
+		echo "ip6neigh start"
+		echo -e
+		
+		exit 1
+	;;
+esac
 
 #Writes error message and terminates the program.
 errormsg() {
 	local msg="Error: $1"
 	>&2 echo "$msg"
 	logger -t ip6neigh "$msg"
-	exit 1
+	exit 2
 }
 
 #Loads UCI configuration file
-[ -f "$CONFIG_FILE" ] || errormsg "UCI config file $CONFIG_FILE is missing. A template is avaliable at https://github.com/AndreBL/ip6neigh ."
-[ -f "/etc/config/dhcp" ] || errormsg "UCI config file /etc/config/dhcp is missing."
+[ -f "$CONFIG_FILE" ] || errormsg "The UCI config file $CONFIG_FILE is missing. A template is avaliable at https://github.com/AndreBL/ip6neigh ."
+[ -f "/etc/config/dhcp" ] || errormsg "The UCI config file /etc/config/dhcp is missing."
 reset_cb
 config_load ip6neigh
 config_get LAN_IFACE config lan_iface lan
@@ -772,158 +775,6 @@ load_neigh() {
 		done
 }
 
-#Clears the log file if one is set
-if [ "$LOG" != "0" ] && [ "$LOG" != "1" ]; then
-	> "$LOG"
-fi
-
-#Startup message
-logmsg "Starting ip6neigh service script v${VERSION} for physdev $LAN_DEV with domain $DOMAIN"
-
-#Gets the IPv6 addresses from the LAN device.
-ll_cidr=$(ip -6 addr show "$LAN_DEV" scope link 2>/dev/null | grep -m 1 'inet6' | awk '{print $2}')
-ula_cidr=$(ip -6 addr show "$LAN_DEV" scope global 2>/dev/null | grep 'inet6 fd' | grep -m 1 -v 'dynamic' | awk '{print $2}')
-wula_cidr=$(ip -6 addr show "$LAN_DEV" scope global noprefixroute dynamic 2>/dev/null | grep 'inet6 fd' | awk '{print $2}')
-gua_cidr=$(ip -6 addr show "$LAN_DEV" scope global noprefixroute 2>/dev/null | grep -m 1 'inet6 [^fd]' | awk '{print $2}')
-ll_address=$(echo "$ll_cidr" | cut -d "/" -f1)
-ula_address=$(echo "$ula_cidr" | cut -d "/" -f1)
-wula_address=$(echo "$wula_cidr" | cut -d "/" -f1)
-gua_address=$(echo "$gua_cidr" | cut -d "/" -f1)
-
-#Gets the network prefixes assuming /64 subnets.
-ula_prefix=$(echo "$ula_address" | cut -d ':' -f1-4)
-wula_prefix=$(echo "$wula_address" | cut -d ':' -f1-4)
-gua_prefix=$(echo "$gua_address" | cut -d ':' -f1-4)
-
-#Choose default the labels based on the available prefixes
-if [ -n "$ula_prefix" ]; then
-	#ULA prefix is available. No label for ULA. WAN side ULA becomes 'ULA'
-	wula_label="ULA"
-	gua_label="PUB"
-elif [ -n "$wula_prefix" ]; then
-	#No ULA prefix. WULA is available. No label for ULA and WULA. Default for PUB.
-	gua_label="PUB"
-fi
-
-#Prefix-independent default labels
-ll_label="LL"
-tmp_label="TMP"
-urt_label="UNROUTED"
-
-#Override default labels based on user supplied options.
-if [ -n "$LL_LABEL" ]; then
-	if [ "$LL_LABEL" = '0' ]; then ll_label=""
-	else ll_label="$LL_LABEL"; fi
-fi
-if [ -n "$ULA_LABEL" ]; then
-	if [ "$ULA_LABEL" = '0' ]; then ula_label=""
-	else ula_label="$ULA_LABEL"; fi
-fi
-if [ -n "$WULA_LABEL" ]; then
-	if [ "$WULA_LABEL" = '0' ]; then wula_label=""
-	else wula_label="$WULA_LABEL"; fi
-fi
-if [ -n "$GUA_LABEL" ]; then
-	if [ "$GUA_LABEL" = '0' ]; then gua_label=""
-	else gua_label="$GUA_LABEL"; fi
-fi
-if [ -n "$TMP_LABEL" ]; then
-	if [ "$TMP_LABEL" = '0' ]; then tmp_label=""
-	else tmp_label="$TMP_LABEL"; fi
-fi
-if [ -n "$URT_LABEL" ]; then
-	if [ "$URT_LABEL" = '0' ]; then urt_label=""
-	else urt_label="$URT_LABEL"; fi
-fi
-
-
-#Adds a dot before each label
-if [ -n "$ll_label" ]; then ll_label=".${ll_label}" ; fi
-if [ -n "$ula_label" ]; then ula_label=".${ula_label}" ; fi
-if [ -n "$wula_label" ]; then wula_label=".${wula_label}" ; fi
-if [ -n "$gua_label" ]; then gua_label=".${gua_label}" ; fi
-if [ -n "$tmp_label" ]; then tmp_label=".${tmp_label}" ; fi
-if [ -n "$urt_label" ]; then urt_label=".${urt_label}" ; fi
-
-#Clears the cache file
-> "$CACHE_FILE"
-
-#Clears the output hosts file
-> "$HOSTS_FILE"
-
-#Flushes the neighbors table
-if [ "$FLUSH" -gt 0 ]; then
-	#Decode flags
-	FLUSH_PERM=0; FLUSH_REACH=0; FLUSH_STALE=0
-	[ "$(($FLUSH & 1))" -gt 0 ] && FLUSH_PERM=1
-	[ "$(($FLUSH & 2))" -gt 0 ] && FLUSH_STALE=1
-	[ "$(($FLUSH & 4))" -gt 0 ] && FLUSH_REACH=1
-	logmsg "Flushing the neighbors table. Flags: PERM=$FLUSH_PERM STALE=$FLUSH_STALE REACH=$FLUSH_REACH"
-	
-	#Flushes the corresponding neighbors
-	[ "$FLUSH_PERM" = 1 ] && ip -6 neigh flush dev "$LAN_DEV" nud perm
-	[ "$FLUSH_STALE" = 1 ] && ip -6 neigh flush dev "$LAN_DEV" nud stale
-	[ "$FLUSH_REACH" = 1 ] && ip -6 neigh flush dev "$LAN_DEV" nud reach
-fi
-
-#Header for static hosts
-echo "#Predefined SLAAC addresses" >> "$HOSTS_FILE"
-
-#Adds the router names
-if [ -n "$ROUTER_NAME" ] && [ "$ROUTER_NAME" != "0" ]; then
-	logmsg "Generating names for the router's addresses"
-	[ -n "$ll_address" ] && add_static "$ROUTER_NAME" "$ll_address" 0
-	[ -n "$ula_address" ] && add_static "$ROUTER_NAME" "$ula_address" 1
-	[ -n "$wula_address" ] && add_static "$ROUTER_NAME" "$wula_address" 2
-	[ -n "$gua_address" ] && add_static "$ROUTER_NAME" "$gua_address" 3
-fi
-
-#Process /etc/config/dhcp and adds static hosts.
-config_load dhcp
-config_foreach config_host host
-echo -e >> "$HOSTS_FILE"
-
-#Header for dynamic hosts
-echo "#Discovered IPv6 neighbors" >> "$HOSTS_FILE"
-
-#Send signal to dnsmasq to reload hosts files.
-killall -1 dnsmasq
-
-#Pings "all nodes" multicast address with source addresses from various scopes to speedup discovery.
-ping6 -q -W 1 -c 3 -s 0 -I "$LAN_DEV" ff02::1 >/dev/null 2>/dev/null
-[ -n "$ula_address" ] && ping6 -q -W 1 -c 3 -s 0 -I "$ula_address" ff02::1 >/dev/null 2>/dev/null
-[ -n "$wula_address" ] && ping6 -q -W 1 -c 3 -s 0 -I "$wula_address" ff02::1 >/dev/null 2>/dev/null
-[ -n "$gua_address" ] && ping6 -q -W 1 -c 3 -s 0 -I "$gua_address" ff02::1 >/dev/null 2>/dev/null
-
-#Get current IPv6 neighbors and call process() routine.
-#Run first round with auto-probe global switch enabled.
-logmsg "Syncing the hosts file with the neighbors table... Round #1"
-LOAD_STALE=1
-AUTO_PROBE=1
-load_neigh
-
-#If some auto-probe is enable, run one more round for detecting the new neighbors after ping6.
-if [ "$PROBE_EUI64" -gt 0 ] || [ "$PROBE_IID" -gt 0 ]; then
-	logmsg "Syncing the hosts file with the neighbors table... Round #2"
-	#This time it doesn't have to probe addresses again.
-	AUTO_PROBE=0
-	load_neigh
-fi
-	
-#Check if there are custom scripts to be runned.
-if [ -n "$FW_SCRIPT" ]; then
-	for script in $FW_SCRIPT; do
-		if [ -f "$script" ]; then
-			logmsg "Running user firewall script: $script"
-			DOMAIN="$DOMAIN" LAN_DEV="$LAN_DEV" WAN_DEV="$WAN_DEV" \
-				ULA_ADDR="$ula_address" ULA_PREFIX="$ula_prefix" \
-				GUA_ADDR="$gua_address" GUA_PREFIX="$gua_prefix" \
-				/bin/sh "$script"
-		fi
-	done
-fi
- 
-
 #Trap service stop
 #terminate() {
 #	logmsg "Terminating service script."
@@ -931,12 +782,209 @@ fi
 #}
 #trap terminate HUP INT TERM
 
-#Infinite main loop. Keeps monitoring changes in IPv6 neighbor's reachability status and call process() routine.
-logmsg "Monitoring changes in the neighbor's table..."
-LOAD_STALE=0
-AUTO_PROBE=1
-ip -6 monitor neigh dev "$LAN_DEV" |
-	while IFS= read -r line
-	do
-		process $line
-	done
+#Main service routine
+main_service() {
+	#Clears the log file if one is set
+	if [ "$LOG" != "0" ] && [ "$LOG" != "1" ]; then
+		> "$LOG"
+	fi
+
+	#Startup message
+	logmsg "Starting ip6neigh main service v${VERSION} for physdev $LAN_DEV with domain $DOMAIN"
+
+	#Gets the IPv6 addresses from the LAN device.
+	ll_cidr=$(ip -6 addr show "$LAN_DEV" scope link 2>/dev/null | grep -m 1 'inet6' | awk '{print $2}')
+	ula_cidr=$(ip -6 addr show "$LAN_DEV" scope global 2>/dev/null | grep 'inet6 fd' | grep -m 1 -v 'dynamic' | awk '{print $2}')
+	wula_cidr=$(ip -6 addr show "$LAN_DEV" scope global noprefixroute dynamic 2>/dev/null | grep 'inet6 fd' | awk '{print $2}')
+	gua_cidr=$(ip -6 addr show "$LAN_DEV" scope global noprefixroute 2>/dev/null | grep -m 1 'inet6 [^fd]' | awk '{print $2}')
+	ll_address=$(echo "$ll_cidr" | cut -d "/" -f1)
+	ula_address=$(echo "$ula_cidr" | cut -d "/" -f1)
+	wula_address=$(echo "$wula_cidr" | cut -d "/" -f1)
+	gua_address=$(echo "$gua_cidr" | cut -d "/" -f1)
+
+	#Gets the network prefixes assuming /64 subnets.
+	ula_prefix=$(echo "$ula_address" | cut -d ':' -f1-4)
+	wula_prefix=$(echo "$wula_address" | cut -d ':' -f1-4)
+	gua_prefix=$(echo "$gua_address" | cut -d ':' -f1-4)
+
+
+	#Choose default the labels based on the available prefixes
+	if [ -n "$ula_prefix" ]; then
+		#ULA prefix is available. No label for ULA. WAN side ULA becomes 'ULA'
+		wula_label="ULA"
+		gua_label="PUB"
+	elif [ -n "$wula_prefix" ]; then
+		#No ULA prefix. WULA is available. No label for ULA and WULA. Default for PUB.
+		gua_label="PUB"
+	fi
+
+	#Prefix-independent default labels
+	ll_label="LL"
+	tmp_label="TMP"
+	urt_label="UNROUTED"
+
+	#Override the default labels based with user supplied options.
+	if [ -n "$LL_LABEL" ]; then
+		if [ "$LL_LABEL" = '0' ]; then ll_label=""
+		else ll_label="$LL_LABEL"; fi
+	fi
+	if [ -n "$ULA_LABEL" ]; then
+		if [ "$ULA_LABEL" = '0' ]; then ula_label=""
+		else ula_label="$ULA_LABEL"; fi
+	fi
+	if [ -n "$WULA_LABEL" ]; then
+		if [ "$WULA_LABEL" = '0' ]; then wula_label=""
+		else wula_label="$WULA_LABEL"; fi
+	fi
+	if [ -n "$GUA_LABEL" ]; then
+		if [ "$GUA_LABEL" = '0' ]; then gua_label=""
+		else gua_label="$GUA_LABEL"; fi
+	fi
+	if [ -n "$TMP_LABEL" ]; then
+		if [ "$TMP_LABEL" = '0' ]; then tmp_label=""
+		else tmp_label="$TMP_LABEL"; fi
+	fi
+	if [ -n "$URT_LABEL" ]; then
+		if [ "$URT_LABEL" = '0' ]; then urt_label=""
+		else urt_label="$URT_LABEL"; fi
+	fi
+
+	#Adds a dot before each label
+	if [ -n "$ll_label" ]; then ll_label=".${ll_label}" ; fi
+	if [ -n "$ula_label" ]; then ula_label=".${ula_label}" ; fi
+	if [ -n "$wula_label" ]; then wula_label=".${wula_label}" ; fi
+	if [ -n "$gua_label" ]; then gua_label=".${gua_label}" ; fi
+	if [ -n "$tmp_label" ]; then tmp_label=".${tmp_label}" ; fi
+	if [ -n "$urt_label" ]; then urt_label=".${urt_label}" ; fi
+		
+	#Clears the cache file
+	> "$CACHE_FILE"
+
+	#Clears the output hosts file
+	> "$HOSTS_FILE"
+
+	#Flushes the neighbors table
+	if [ "$FLUSH" -gt 0 ]; then
+		#Decode flags
+		FLUSH_PERM=0; FLUSH_REACH=0; FLUSH_STALE=0
+		[ "$(($FLUSH & 1))" -gt 0 ] && FLUSH_PERM=1
+		[ "$(($FLUSH & 2))" -gt 0 ] && FLUSH_STALE=1
+		[ "$(($FLUSH & 4))" -gt 0 ] && FLUSH_REACH=1
+		logmsg "Flushing the neighbors table. Flags: PERM=$FLUSH_PERM STALE=$FLUSH_STALE REACH=$FLUSH_REACH"
+		
+		#Flushes the corresponding neighbors
+		[ "$FLUSH_PERM" = 1 ] && ip -6 neigh flush dev "$LAN_DEV" nud perm
+		[ "$FLUSH_STALE" = 1 ] && ip -6 neigh flush dev "$LAN_DEV" nud stale
+		[ "$FLUSH_REACH" = 1 ] && ip -6 neigh flush dev "$LAN_DEV" nud reach
+	fi
+
+	#Header for static hosts
+	echo "#Predefined SLAAC addresses" >> "$HOSTS_FILE"
+
+	#Adds the router names
+	if [ -n "$ROUTER_NAME" ] && [ "$ROUTER_NAME" != "0" ]; then
+		logmsg "Generating names for the router's addresses"
+		[ -n "$ll_address" ] && add_static "$ROUTER_NAME" "$ll_address" 0
+		[ -n "$ula_address" ] && add_static "$ROUTER_NAME" "$ula_address" 1
+		[ -n "$wula_address" ] && add_static "$ROUTER_NAME" "$wula_address" 2
+		[ -n "$gua_address" ] && add_static "$ROUTER_NAME" "$gua_address" 3
+	fi
+
+	#Process /etc/config/dhcp and adds static hosts.
+	config_load dhcp
+	config_foreach config_host host
+	echo -e >> "$HOSTS_FILE"
+
+	#Header for dynamic hosts
+	echo "#Discovered IPv6 neighbors" >> "$HOSTS_FILE"
+
+	#Send signal to dnsmasq to reload hosts files.
+	killall -1 dnsmasq
+
+	#Pings "all nodes" multicast address with source addresses from various scopes to speedup discovery.
+	ping6 -q -W 1 -c 3 -s 0 -I "$LAN_DEV" ff02::1 >/dev/null 2>/dev/null
+	[ -n "$ula_address" ] && ping6 -q -W 1 -c 3 -s 0 -I "$ula_address" ff02::1 >/dev/null 2>/dev/null
+	[ -n "$wula_address" ] && ping6 -q -W 1 -c 3 -s 0 -I "$wula_address" ff02::1 >/dev/null 2>/dev/null
+	[ -n "$gua_address" ] && ping6 -q -W 1 -c 3 -s 0 -I "$gua_address" ff02::1 >/dev/null 2>/dev/null
+
+	#Get current IPv6 neighbors and call process() routine.
+	#Run first round with auto-probe global switch enabled.
+	logmsg "Syncing the hosts file with the neighbors table... Round #1"
+	LOAD_STALE=1
+	AUTO_PROBE=1
+	load_neigh
+
+	#If some auto-probe is enable, run one more round for detecting the new neighbors after ping6.
+	if [ "$PROBE_EUI64" -gt 0 ] || [ "$PROBE_IID" -gt 0 ]; then
+		logmsg "Syncing the hosts file with the neighbors table... Round #2"
+		#This time it doesn't have to probe addresses again.
+		AUTO_PROBE=0
+		load_neigh
+	fi
+		
+	#Check if there are custom scripts to be runned.
+	if [ -n "$FW_SCRIPT" ]; then
+		for script in $FW_SCRIPT; do
+			if [ -f "$script" ]; then
+				logmsg "Running user firewall script: $script"
+				DOMAIN="$DOMAIN" LAN_DEV="$LAN_DEV" WAN_DEV="$WAN_DEV" \
+					ULA_ADDR="$ula_address" ULA_PREFIX="$ula_prefix" \
+					GUA_ADDR="$gua_address" GUA_PREFIX="$gua_prefix" \
+					/bin/sh "$script"
+			fi
+		done
+	fi
+	 
+	#Infinite main loop. Keeps monitoring changes in IPv6 neighbor's reachability status and call process() routine.
+	logmsg "Monitoring changes in the neighbor's table..."
+	LOAD_STALE=0
+	AUTO_PROBE=1
+	local line
+	ip -6 monitor neigh dev "$LAN_DEV" |
+		while IFS= read -r line
+		do
+			process $line
+		done
+	
+	#This line should never be reached.
+	exit 3
+}
+
+#DAD NS packet snooping service
+snooping_service() {
+	#Check if tcpdump is installed
+	if ! which tcpdump >/dev/null; then
+		errormsg "DAD snooping is not available because tcpdump is not installed on this system."
+	fi
+
+	#Startup message
+	logmsg "Starting ip6neigh snooping service v${VERSION} for physdev $LAN_DEV"
+
+	local addr
+	
+	#Infinite loop. Keeps listening to DAD NS packets and pings the captured addresses.
+	tcpdump -q -l -n -p -i "$LAN_DEV" 'src :: && ip6[40] == 135' 2>/dev/null |
+        awk '{print substr($11,1,length($11)-1);}' |
+		while IFS= read -r addr
+		do
+			#Ignore blank lines
+			[ -n "$addr" ] || continue
+			
+			#Check if the address already exists in any hosts file
+			if grep -q "^$addr[ ,"$'\t'"]" /tmp/hosts/* ; then continue; fi
+				
+			#Ping the address to trigger a NS message from the router
+			sleep 1
+			logmsg "Probing $addr after snooping a DAD NS packet from it"
+			ping6 -q -W 1 -c 1 -s 0 -I "$LAN_DEV" "$addr" >/dev/null 2>/dev/null
+		done
+	
+	#This line should never be reached.
+	exit 3
+}
+
+#Check which service should run
+case "$1" in
+	'-s') main_service;;
+	'-n') snooping_service;;
+esac

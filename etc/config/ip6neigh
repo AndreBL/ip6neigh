@@ -22,14 +22,20 @@ config ip6neigh 'config'
 	# be appended for each scope of address. Use '0' if you want to disable this
 	# feature. Default: 'Router'
 	#option router_name	'0'
+	
+	# Enable Duplicate Address Detection (DAD) snooping feature. Requires package
+	# tcpdump. If enabled, ip6neigh will instantly detect when a new host joins the
+	# network and will be able to see all the IPv6 addresses took by that host.
+	# 0=disabled, 1=enabled. Default: '0'
+	#option dad_snoop	'1'
 
 	# When a new neighbor is discovered, auto probe for other addresses based
-	# on MAC address.
+	# on the neighbor's MAC address.
 	# 0=disabled, 1=all scopes, 2=same scope. Default: '1'
 	#option probe_eui64	'0'
 
 	# When a new neighbor is discovered, auto probe for other addresses with
-	# the same interface identifier. 
+	# the same interface identifier but with different prefixes. 
 	# 0=disabled, 1=enabled. Default: '1'
 	#option probe_iid	'0'
 
