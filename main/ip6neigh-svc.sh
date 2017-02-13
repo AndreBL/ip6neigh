@@ -21,7 +21,7 @@
 . /lib/functions/network.sh
 
 #Program definitions
-readonly VERSION="1.3.2"
+readonly VERSION="1.3.3"
 readonly CONFIG_FILE="/etc/config/ip6neigh"
 readonly HOSTS_FILE="/tmp/hosts/ip6neigh"
 readonly CACHE_FILE="/tmp/ip6neigh.cache"
@@ -969,6 +969,7 @@ snooping_service() {
 	local addr
 	
 	#Infinite loop. Keeps listening to DAD NS packets and pings the captured addresses.
+	ip link set "$LAN_DEV" allmulticast on
 	tcpdump -q -l -n -p -i "$LAN_DEV" 'src :: && icmp6 && ip6[40] == 135' 2>/dev/null |
 		while IFS= read -r line
 		do
