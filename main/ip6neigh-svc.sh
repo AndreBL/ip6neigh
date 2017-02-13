@@ -969,7 +969,7 @@ snooping_service() {
 	local addr
 	
 	#Infinite loop. Keeps listening to DAD NS packets and pings the captured addresses.
-	tcpdump -q -l -n -p -i "$LAN_DEV" 'src :: && ip6[40] == 135' 2>/dev/null |
+	tcpdump -q -l -n -p -i "$LAN_DEV" 'src :: && icmp6 && ip6[40] == 135' 2>/dev/null |
 		while IFS= read -r line
 		do
 			#Get the address from the line
