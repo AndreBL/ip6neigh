@@ -21,7 +21,7 @@
 . /lib/functions/network.sh
 
 #Program definitions
-readonly VERSION="1.3.1"
+readonly VERSION="1.3.2"
 readonly CONFIG_FILE="/etc/config/ip6neigh"
 readonly HOSTS_FILE="/tmp/hosts/ip6neigh"
 readonly CACHE_FILE="/tmp/ip6neigh.cache"
@@ -153,6 +153,40 @@ rename() {
 	return 0
 }
 
+#Removes the TMP label from addresses that are now found to be non-temporary
+remove_tmp_label() {
+	local addr="$1"
+	
+	#Gets the interface identifier from the address
+	iid=$(echo "$addr" | grep -o -m 1 -E "[^:]{1,4}:[^:]{1,4}:[^:]{1,4}:[^:]{1,4}$")
+	
+	#Aborts if could not get IID.
+	[ -n "$iid" ] || return 1
+	
+	#Get the list of addresses with the same IID
+	local match="^[^ ]*::${iid} [^\.]*\\${tmp_label}(\.|$)"
+	local list
+	list=$(grep -E "$match" "$HOSTS_FILE")
+	
+	#Return if nothing was found
+	[ "$?" = 0 ] || return 0
+	
+	#Create temp file without the matched lines
+	grep -v -E "$match" "$HOSTS_FILE" > "$TEMP_FILE"
+
+	#Remove the label from the matched lines and append to the temp file
+	echo "$list" |
+		sed -e "s/${tmp_label}.${DOMAIN}//g" \
+			-e "s/${tmp_label}//g" \
+		>> "$TEMP_FILE"
+	
+	#Move the temp file over the main file
+	mv "$TEMP_FILE" "$HOSTS_FILE"
+
+	logmsg "Removed the ${tmp_label} label from the addresses with IID: ${iid}"
+	return 0
+}
+
 #Writes message to log
 logmsg() {
 	#Check if logging is disabled
@@ -181,19 +215,11 @@ is_other_static() {
 	#Gets the interface identifier from the address
 	iid=$(echo "$addr" | grep -o -m 1 -E "[^:]{1,4}:[^:]{1,4}:[^:]{1,4}:[^:]{1,4}$")
 	
-	#Aborts with false if could not get IID.
+	#Abort with false if could not get IID.
 	[ -n "$iid" ] || return 1
 	
-	#Builds match string
-	local match
-	if [ -n "$ll_label" ]; then
-		match="^fe80::${iid} [^ ]*${ll_label}.${DOMAIN}$"
-	else
-		match="^fe80::${iid} [^ ]*$"
-	fi
-
-	#Looks for match and returns true if it finds one.
-	grep -q "$match" "$HOSTS_FILE"
+	#Looks for a link-local address with the same IID and returns true if it finds one.
+	grep -q "^fe80::${iid} " "$HOSTS_FILE"
 	return "$?"	
 }
 
@@ -450,7 +476,7 @@ get_name() {
 	matched=$(grep -m 1 "^$addr[ ,"$'\t'"]" /tmp/hosts/*)
 	
 	#Address is new? (not found)
-	[ "$?" != 0 ] && return 3
+	[ "$?" != 0 ] && return 2
 	
 	#Check what kind of name it has
 	local gname=$(echo "$matched" | tr $'\t' ' ' | cut -d ' ' -f2)
@@ -458,15 +484,9 @@ get_name() {
 	eval "$1='$fname'"
 	
 	#Manufacturer name?
-	grep -q "01 ${fname}$" "$CACHE_FILE" && return 2
+	grep -q "01 ${fname}$" "$CACHE_FILE" && return 1
 
-	#Temporary name?
-	if [ -n "$tmp_label" ]; then
-		echo "$gname" | grep -q "^[^\.]*${tmp_label}\."
-		[ "$?" = 0 ] && return 1
-	fi
-	
-	#Existent non-temporary name
+	#Stable name
 	return 0
 }
 
@@ -513,33 +533,15 @@ process() {
 			return 0
 		;;
 		
-		#Neighbor is reachable os stale. Must be processed.
+		#Neighbor is reachable or stale. Must be processed.
 		"REACHABLE"|"STALE"|"PERMANENT")
 			#Decide what to do based on type.
 			case "$type" in
 				#Address already has a stable name. Nothing to be done.
 				0) return 0;;
 				
-				#Address named as temporary. Check if it is possible to classify it as non-temporary now.
-				1)
-					if is_other_static "$addr"; then
-						#Removes the temporary address entry to be re-added as non-temp.
-						logmsg "Address $addr was believed to be temporary but a LL address with same IID is now found. Replacing entry."
-						remove "$addr"
-						
-						#Create name for address, allowing to generate unknown.
-						if ! create_name name "$mac" 1; then
-							#Nothing to be done if could not get a name.
-							return 0
-						fi
-					else
-						#Still temporary. Nothing to be done.
-						return 0
-					fi
-				;;
-				
 				#Address is using manufacturer name.
-				2)
+				1)
 					#Create name for address, not allowing to generate from manufacturer again.
 					if create_name name "$mac" 0; then
 						#Success creating name. Replaces the unknown name.
@@ -551,7 +553,7 @@ process() {
 				;;
 				
 				#Address is new.
-				3)
+				2)
 					#Create name for address, allowing to generate from manufacturer.
 					if ! create_name name "$mac" 1; then
 						#Nothing to be done if could not get a name.
@@ -572,6 +574,9 @@ process() {
 				
 				#Sets scope ID to LL
 				scope=0
+				
+				#Remove the TMP label from the addresses that have the same IID
+				[ -n "$tmp_label" ] && remove_tmp_label "$addr"
 			elif [ "$prefix" = "$ula_prefix" ] || [ -z "$urt_label" -a "${addr:0:2}" = "fd" ] ; then
 				#Is ULA. Append corresponding label.
 				suffix="${ula_label}"
