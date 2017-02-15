@@ -21,7 +21,7 @@
 . /lib/functions/network.sh
 
 #Program definitions
-readonly VERSION="1.3.3"
+readonly VERSION="1.3.4"
 readonly CONFIG_FILE="/etc/config/ip6neigh"
 readonly HOSTS_FILE="/tmp/hosts/ip6neigh"
 readonly CACHE_FILE="/tmp/ip6neigh.cache"
@@ -73,6 +73,7 @@ config_get_bool MANUF_NAMES config manuf_names 1
 config_get PROBE_EUI64 config probe_eui64 1
 config_get_bool PROBE_IID config probe_iid 1
 config_get_bool LOAD_STATIC config load_static 1
+config_get_bool PROBE_HOST config probe_host 1
 config_get FLUSH config flush 1
 config_get FW_SCRIPT config fw_script
 config_get LOG config log 0
@@ -241,7 +242,7 @@ add_probe() {
 	local addr="$1"
 	
 	#Do not add if the address already exist in some hosts file.
-	grep -q "^$addr[ ,"$'\t'"]" /tmp/hosts/* && return 0
+	[ "$2" -gt 0 ] && grep -q "^$addr[ ,"$'\t'"]" /tmp/hosts/* && return 0
 	
 	#Adds to the list
 	probe_list="${probe_list} ${addr}"
@@ -249,7 +250,7 @@ add_probe() {
 	return 0
 }
 
-#Probe addresses related to the supplied base address and MAC.
+#Probe addresses that are related to the supplied base address and MAC.
 probe_addresses() {
 	local name="$1"
 	local baseaddr="$2"
@@ -258,6 +259,18 @@ probe_addresses() {
 
 	#Initializes probe list
 	probe_list=""
+	
+	#Check if is configured for probing all the addresses from the same host
+	if [ "$PROBE_HOST" -gt 0 ]; then
+		#Get the address list for this host.
+		local hlist
+		local haddr
+		hlist=$(grep -E " ${name}(\.|$)" "$HOSTS_FILE" | cut -d ' ' -f1)
+		IFS=$'\n'
+		for haddr in $hlist; do
+			[ "$haddr" != "$addr" ] && add_probe "$haddr"
+		done
+	fi
 
 	#Check if is configured for probing addresses with the same IID
 	local base_iid=""
@@ -269,9 +282,9 @@ probe_addresses() {
 		if [ -n "$base_iid" ]; then
 			#Probe same IID for different scopes than this one.
 			if [ "$scope" != 0 ]; then add_probe "fe80::${base_iid}"; fi
-			if [ "$scope" != 1 ] && [ -n "$ula_prefix" ]; then add_probe "${ula_prefix}:${base_iid}"; fi
-			if [ "$scope" != 2 ] && [ -n "$wula_prefix" ]; then add_probe "${wula_prefix}:${base_iid}"; fi
-			if [ "$scope" != 3 ] && [ -n "$gua_prefix" ]; then add_probe "${gua_prefix}:${base_iid}"; fi
+			if [ "$scope" != 1 ] && [ -n "$ula_prefix" ]; then add_probe "${ula_prefix}:${base_iid}" 1; fi
+			if [ "$scope" != 2 ] && [ -n "$wula_prefix" ]; then add_probe "${wula_prefix}:${base_iid}" 1; fi
+			if [ "$scope" != 3 ] && [ -n "$gua_prefix" ]; then add_probe "${gua_prefix}:${base_iid}" 1; fi
 		fi
 	fi
 
@@ -283,15 +296,15 @@ probe_addresses() {
 
 		#Only add to list if EUI-64 IID is different from the one that has been just added.
 		if [ "$eui64_iid" != "$base_iid" ]; then
-			if [ "$PROBE_EUI64" = "1" ] && [ "$scope" != 0 ]; then add_probe "fe80::${eui64_iid}"; fi
+			if [ "$PROBE_EUI64" = "1" ] && [ "$scope" != 0 ]; then add_probe "fe80::${eui64_iid}" 1; fi
 			if [ "$PROBE_EUI64" = "1" ] || [ "$scope" = 1 ]; then
-				if [ -n "$ula_prefix" ]; then add_probe "${ula_prefix}:${eui64_iid}"; fi
+				if [ -n "$ula_prefix" ]; then add_probe "${ula_prefix}:${eui64_iid}" 1; fi
 			fi
 			if [ "$PROBE_EUI64" = "1" ] || [ "$scope" = 2 ]; then
-				if [ -n "$wula_prefix" ]; then add_probe "${wula_prefix}:${eui64_iid}"; fi
+				if [ -n "$wula_prefix" ]; then add_probe "${wula_prefix}:${eui64_iid}" 1; fi
 			fi
 			if [ "$PROBE_EUI64" = "1" ] || [ "$scope" = 3 ]; then
-				if [ -n "$gua_prefix" ]; then add_probe "${gua_prefix}:${eui64_iid}"; fi
+				if [ -n "$gua_prefix" ]; then add_probe "${gua_prefix}:${eui64_iid}" 1; fi
 			fi
 		fi
 	fi

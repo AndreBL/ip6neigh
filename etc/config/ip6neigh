@@ -29,15 +29,20 @@ config ip6neigh 'config'
 	# 0=disabled, 1=enabled. Default: '0'
 	#option dad_snoop	'1'
 
-	# When a new neighbor is discovered, auto probe for other addresses based
+	# When a new address is discovered, auto probe for other addresses based
 	# on the neighbor's MAC address.
 	# 0=disabled, 1=all scopes, 2=same scope. Default: '1'
 	#option probe_eui64	'0'
 
-	# When a new neighbor is discovered, auto probe for other addresses with
+	# When a new address is discovered, auto probe for other addresses with
 	# the same interface identifier but with different prefixes. 
 	# 0=disabled, 1=enabled. Default: '1'
 	#option probe_iid	'0'
+	
+	# When a new address is discovered, probe any other addresses that belong
+	# to that same host to update their reachability status. 
+	# 0=disabled, 1=enabled. Default: '1'
+	#option probe_host	'0'
 
 	# Custom label for link-local addresses. Writing '0' clears the label.
 	# Default: 'LL'
