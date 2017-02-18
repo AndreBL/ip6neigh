@@ -146,21 +146,25 @@ It is possible to see the host file via the LuCI web interface by using luci-app
 5. Or run from CLI
 
 	```
-	# ip6neigh list 
+	# ip6neigh list
 	#Predefined hosts
-	Router                         2001:470:ebbd:4::1 
-	Router.LL.lan                  fe80::224:a5ff:fed7:3088 
+	Router                         fdf2:a18:c0f0::1
+	Router.LL.lan                  fe80::224:a5ff:fed7:3088
+	Router.PUB.lan                 2001:470:ebbd:4::1
 
 	#Discovered hosts
-	Speed-9BA                      2001:470:ebbd:4:213:3bff:fe99:19ba 
-	Speed-9BA.LL.lan               fe80::213:3bff:fe99:19ba 
-	Speed-9BA.TMP.lan              2001:470:ebbd:4:b5e3:1def:443b:f7b9 
-	alarm                          2001:470:ebbd:4:5048:e4ff:fe4d:a27d 
-	alarm.LL.lan                   fe80::5048:e4ff:fe4d:a27d 
-	alarm.TMP.lan                  2001:470:ebbd:4:614b:2c7:27af:6713 
-	hau                            2001:470:ebbd:4:d69a:20ff:fe01:e0a4 
-	hau.LL.lan                     fe80::d69a:20ff:fe01:e0a4 
-	hau.TMP.lan                    2001:470:ebbd:4::46f 
+	Speed-9BA.LL.lan               fe80::213:3bff:fe99:19ba
+	Speed-9BA.PUB.lan              2001:470:ebbd:4:213:3bff:fe99:19ba
+	Speed-9BA.TMP.PUB.lan          2001:470:ebbd:4:700f:a45:cb2d:8fb1
+	Speed-9BA.UNROUTED.lan         fdf2:a18:c0f0:0:213:3bff:fe99:19ba
+	Speed-9BA.UNROUTED.lan         fdf2:a18:c0f0:0:700f:a45:cb2d:8fb1
+	alarm.LL.lan                   fe80::bca2:6aff:fe36:2caa
+	alarm.PUB.lan                  2001:470:ebbd:4:bca2:6aff:fe36:2caa
+	alarm.TMP.PUB.lan              2001:470:ebbd:4::ac6
+	alarm.TMP.PUB.lan              2001:470:ebbd:4:bce2:23c4:8aa5:89a4
+	alarm.TMP.lan                  fdf2:a18:c0f0::ac6
+	alarm.UNROUTED.lan             fdf2:a18:c0f0:0:bca2:6aff:fe36:2caa
+	alarm.UNROUTED.lan             fdf2:a18:c0f0:0:bce2:23c4:8aa5:89a4
 
 	```
 
@@ -269,13 +273,13 @@ Fri Dec 23 23:44:31 UTC 2016 Starting ip6neigh script for physdev br-lan with do
 Fri Dec 23 23:44:31 UTC 2016 Network does not have ULA prefix. Clearing label for GUAs.
 Fri Dec 23 23:44:31 UTC 2016 Generating predefined SLAAC addresses for router
 Fri Dec 23 23:44:41 UTC 2016 Added: alarm.LL.lan fe80::5048:e4ff:fe4d:a27d
-Fri Dec 23 23:44:54 UTC 2016 Added: alarm.TMP.lan 2001:470:ebbd:4:3466:322a:649a:7172
+Fri Dec 23 23:44:54 UTC 2016 Added: alarm.TMP.lan 2001:db8:ebbd:4:3466:322a:649a:7172
 Fri Dec 23 23:44:54 UTC 2016 Probing other possible addresses for alarm: fe80::3466:322a:649a:7172 fe80::5048:e4ff:fe4d:a27d 
 ..
 Tue Dec 27 01:32:17 UTC 2016 Added: Unknown-01e0a4.LL.lan fe80::d69a:20ff:fe01:e0a4
-Tue Dec 27 01:32:19 UTC 2016 Added: Unknown-01e0a4.TMP.lan 2001:470:ebbd:4:1d82:c1c3:c2a3:d46b
+Tue Dec 27 01:32:19 UTC 2016 Added: Unknown-01e0a4.TMP.lan 2001:db8:ebbd:4:1d82:c1c3:c2a3:d46b
 Tue Dec 27 01:32:19 UTC 2016 Probing other possible addresses for Unknown-01e0a4: fe80::1d82:c1c3:c2a3:d46b fe80::d69a:20ff:fe01:e0a4 
-Tue Dec 27 01:32:20 UTC 2016 Added: hau 2001:470:ebbd:4:d69a:20ff:fe01:e0a4
+Tue Dec 27 01:32:20 UTC 2016 Added: hau 2001:db8:ebbd:4:d69a:20ff:fe01:e0a4
 Tue Dec 27 01:32:20 UTC 2016 Probing other possible addresses for hau: fe80::d69a:20ff:fe01:e0a4 
 ```
    
@@ -284,24 +288,26 @@ To list the hostnames detected by **ip6neigh**.
 ```
 # ip6neigh list 
 #Predefined hosts
-Router                         2001:470:ebbd:4::1 
+Router                         2001:db8:ebbd:4::1 
 Router.LL.lan                  fe80::224:a5ff:fed7:3088 
 
 #Discovered hosts
-Speed-9BA                      2001:470:ebbd:4:213:3bff:fe99:19ba 
+Speed-9BA                      2001:db8:ebbd:4:213:3bff:fe99:19ba 
 Speed-9BA.LL.lan               fe80::213:3bff:fe99:19ba 
-Speed-9BA.TMP.lan              2001:470:ebbd:4:b5e3:1def:443b:f7b9 
-alarm                          2001:470:ebbd:4:5048:e4ff:fe4d:a27d 
+Speed-9BA.TMP.lan              2001:db8:ebbd:4:b5e3:1def:443b:f7b9 
+alarm                          2001:db8:ebbd:4:5048:e4ff:fe4d:a27d 
 alarm.LL.lan                   fe80::5048:e4ff:fe4d:a27d 
-alarm.TMP.lan                  2001:470:ebbd:4:614b:2c7:27af:6713 
-hau                            2001:470:ebbd:4:d69a:20ff:fe01:e0a4 
+alarm.TMP.lan                  2001:db8:ebbd:4:614b:2c7:27af:6713 
+hau                            2001:db8:ebbd:4:d69a:20ff:fe01:e0a4 
 hau.LL.lan                     fe80::d69a:20ff:fe01:e0a4 
-hau.TMP.lan                    2001:470:ebbd:4::46f 
+hau.TMP.lan                    2001:db8:ebbd:4::46f 
 ```
 
 ## Dependencies
 
 One only needs to install `ip` and `curl` packages. It has been tested on Chaos Calmer (v15.05.1) of OpenWrt. 
+
+Additional dependency for 'snooping' mode is `tcpdump`.
 
 In order to use the LuCI web interface, one must install `luci-app-commands`   
 
