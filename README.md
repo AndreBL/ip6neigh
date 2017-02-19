@@ -146,18 +146,9 @@ It is possible to see the host file via the LuCI web interface by using luci-app
 5. Or run from CLI
 
 	```
-	# ip6neigh list
-	#Predefined hosts
-	Router                         fdf2:a18:c0f0::1
-	Router.LL.lan                  fe80::224:a5ff:fed7:3088
-	Router.PUB.lan                 2001:470:ebbd:4::1
-
-	#Discovered hosts
-	Speed-9BA.LL.lan               fe80::213:3bff:fe99:19ba
+	# ip6neigh list active
 	Speed-9BA.PUB.lan              2001:470:ebbd:4:213:3bff:fe99:19ba
-	Speed-9BA.TMP.PUB.lan          2001:470:ebbd:4:700f:a45:cb2d:8fb1
 	Speed-9BA.UNROUTED.lan         fdf2:a18:c0f0:0:213:3bff:fe99:19ba
-	Speed-9BA.UNROUTED.lan         fdf2:a18:c0f0:0:700f:a45:cb2d:8fb1
 	alarm.LL.lan                   fe80::bca2:6aff:fe36:2caa
 	alarm.PUB.lan                  2001:470:ebbd:4:bca2:6aff:fe36:2caa
 	alarm.TMP.PUB.lan              2001:470:ebbd:4::ac6
@@ -165,6 +156,11 @@ It is possible to see the host file via the LuCI web interface by using luci-app
 	alarm.TMP.lan                  fdf2:a18:c0f0::ac6
 	alarm.UNROUTED.lan             fdf2:a18:c0f0:0:bca2:6aff:fe36:2caa
 	alarm.UNROUTED.lan             fdf2:a18:c0f0:0:bce2:23c4:8aa5:89a4
+	hau.LL.lan                     fe80::d69a:20ff:fe01:e0a4
+	hau.PUB.lan                    2001:470:ebbd:4:d69a:20ff:fe01:e0a4
+	hau.TMP.PUB.lan                2001:470:ebbd:4::46f
+	hau.TMP.PUB.lan                2001:470:ebbd:4:d974:2aea:45fd:fabd
+	hau.UNROUTED.lan               fdf2:a18:c0f0:0:d69a:20ff:fe01:e0a4
 
 	```
 
