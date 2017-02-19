@@ -19,9 +19,10 @@
 #Dependencies
 . /lib/functions.sh
 . /lib/functions/network.sh
+. /usr/lib/ip6neigh/ip6addr_functions.sh
 
 #Program definitions
-readonly VERSION="1.3.4"
+readonly VERSION="1.4.0"
 readonly CONFIG_FILE="/etc/config/ip6neigh"
 readonly HOSTS_FILE="/tmp/hosts/ip6neigh"
 readonly CACHE_FILE="/tmp/ip6neigh.cache"
@@ -73,7 +74,6 @@ config_get_bool MANUF_NAMES config manuf_names 1
 config_get PROBE_EUI64 config probe_eui64 1
 config_get_bool PROBE_IID config probe_iid 1
 config_get_bool LOAD_STATIC config load_static 1
-config_get_bool PROBE_HOST config probe_host 1
 config_get FLUSH config flush 1
 config_get FW_SCRIPT config fw_script
 config_get LOG config log 0
@@ -157,15 +157,14 @@ rename() {
 #Removes the TMP label from addresses that are now found to be non-temporary
 remove_tmp_label() {
 	local addr="$1"
+	local name="$name"
 	
 	#Gets the interface identifier from the address
-	iid=$(echo "$addr" | grep -o -m 1 -E "[^:]{1,4}:[^:]{1,4}:[^:]{1,4}:[^:]{1,4}$")
+	local iid
+	addr_iid64 iid "$addr"
 	
-	#Aborts if could not get IID.
-	[ -n "$iid" ] || return 1
-	
-	#Get the list of addresses with the same IID
-	local match="^[^ ]*::${iid} [^\.]*\\${tmp_label}(\.|$)"
+	#Get the list of addresses with the same IID from the same host
+	local match="^[^ ]*:${iid} ${name}\\${tmp_label}(\.|$)"
 	local list
 	list=$(grep -E "$match" "$HOSTS_FILE")
 	
@@ -209,19 +208,24 @@ is_eui64() {
 	return "$?"	
 }
 
-#Returns 0 if the supplied non-LL IPv6 address has the same IID as the LL address for that same host.
+#Tries to guess if the supplied IPv6 address is non-temporary.
 is_other_static() {
 	local addr="$1"
 	
 	#Gets the interface identifier from the address
-	iid=$(echo "$addr" | grep -o -m 1 -E "[^:]{1,4}:[^:]{1,4}:[^:]{1,4}:[^:]{1,4}$")
-	
-	#Abort with false if could not get IID.
-	[ -n "$iid" ] || return 1
+	local iid
+	addr_iid64 iid "$addr"
 	
 	#Looks for a link-local address with the same IID and returns true if it finds one.
-	grep -q "^fe80::${iid} " "$HOSTS_FILE"
-	return "$?"	
+	local lladdr
+	compress_addr lladdr "fe80:0:0:0:${iid}"
+	grep -q "^$lladdr " "$HOSTS_FILE" && return 0
+	
+	#Check if the IID looks like something the DHCPv6 server would create.
+	[ "${iid:0:6}" = '0:0:0:' ] && return 0
+	
+	#Otherwise returns false
+	return 1
 }
 
 #Generates EUI-64 interface identifier based on MAC address
@@ -239,10 +243,12 @@ gen_eui64() {
 
 #Adds an address to the probe list
 add_probe() {
-	local addr="$1"
+	#Compress the address
+	local addr
+	compress_addr addr "$1"
 	
 	#Do not add if the address already exist in some hosts file.
-	[ "$2" -gt 0 ] && grep -q "^$addr[ ,"$'\t'"]" /tmp/hosts/* && return 0
+	grep -q "^$addr[ ,"$'\t'"]" /tmp/hosts/* && return 0
 	
 	#Adds to the list
 	probe_list="${probe_list} ${addr}"
@@ -250,7 +256,7 @@ add_probe() {
 	return 0
 }
 
-#Probe addresses that are related to the supplied base address and MAC.
+#Probe addresses related to the supplied base address and MAC.
 probe_addresses() {
 	local name="$1"
 	local baseaddr="$2"
@@ -259,33 +265,18 @@ probe_addresses() {
 
 	#Initializes probe list
 	probe_list=""
-	
-	#Check if is configured for probing all the addresses from the same host
-	if [ "$PROBE_HOST" -gt 0 ]; then
-		#Get the address list for this host.
-		local hlist
-		local haddr
-		hlist=$(grep -E " ${name}(\.|$)" "$HOSTS_FILE" | cut -d ' ' -f1)
-		IFS=$'\n'
-		for haddr in $hlist; do
-			[ "$haddr" != "$addr" ] && add_probe "$haddr"
-		done
-	fi
 
 	#Check if is configured for probing addresses with the same IID
 	local base_iid=""
 	if [ "$PROBE_IID" -gt 0 ]; then
 		#Gets the interface identifier from the base address
-		base_iid=$(echo "$baseaddr" | grep -o -m 1 -E "[^:]{1,4}:[^:]{1,4}:[^:]{1,4}:[^:]{1,4}$")
+		addr_iid64 base_iid "$baseaddr"
 		
-		#Proceed if successful in getting the IID from the address
-		if [ -n "$base_iid" ]; then
-			#Probe same IID for different scopes than this one.
-			if [ "$scope" != 0 ]; then add_probe "fe80::${base_iid}"; fi
-			if [ "$scope" != 1 ] && [ -n "$ula_prefix" ]; then add_probe "${ula_prefix}:${base_iid}" 1; fi
-			if [ "$scope" != 2 ] && [ -n "$wula_prefix" ]; then add_probe "${wula_prefix}:${base_iid}" 1; fi
-			if [ "$scope" != 3 ] && [ -n "$gua_prefix" ]; then add_probe "${gua_prefix}:${base_iid}" 1; fi
-		fi
+		#Probe same IID for different scopes than this one.
+		if [ "$scope" != 0 ]; then add_probe "fe80::${base_iid}"; fi
+		if [ "$scope" != 1 ] && [ -n "$ula_prefix" ]; then add_probe "${ula_prefix}:${base_iid}"; fi
+		if [ "$scope" != 2 ] && [ -n "$wula_prefix" ]; then add_probe "${wula_prefix}:${base_iid}"; fi
+		if [ "$scope" != 3 ] && [ -n "$gua_prefix" ]; then add_probe "${gua_prefix}:${base_iid}"; fi
 	fi
 
 	#Check if is configured for probing MAC-based addresses
@@ -296,15 +287,15 @@ probe_addresses() {
 
 		#Only add to list if EUI-64 IID is different from the one that has been just added.
 		if [ "$eui64_iid" != "$base_iid" ]; then
-			if [ "$PROBE_EUI64" = "1" ] && [ "$scope" != 0 ]; then add_probe "fe80::${eui64_iid}" 1; fi
+			if [ "$PROBE_EUI64" = "1" ] && [ "$scope" != 0 ]; then add_probe "fe80::${eui64_iid}"; fi
 			if [ "$PROBE_EUI64" = "1" ] || [ "$scope" = 1 ]; then
-				if [ -n "$ula_prefix" ]; then add_probe "${ula_prefix}:${eui64_iid}" 1; fi
+				if [ -n "$ula_prefix" ]; then add_probe "${ula_prefix}:${eui64_iid}"; fi
 			fi
 			if [ "$PROBE_EUI64" = "1" ] || [ "$scope" = 2 ]; then
-				if [ -n "$wula_prefix" ]; then add_probe "${wula_prefix}:${eui64_iid}" 1; fi
+				if [ -n "$wula_prefix" ]; then add_probe "${wula_prefix}:${eui64_iid}"; fi
 			fi
 			if [ "$PROBE_EUI64" = "1" ] || [ "$scope" = 3 ]; then
-				if [ -n "$gua_prefix" ]; then add_probe "${gua_prefix}:${eui64_iid}" 1; fi
+				if [ -n "$gua_prefix" ]; then add_probe "${gua_prefix}:${eui64_iid}"; fi
 			fi
 		fi
 	fi
@@ -319,12 +310,14 @@ probe_addresses() {
 	
 	#Ping each address once.
 	local addr
-	IFS=' '
+	local OIFS="$IFS"
+	unset IFS
 	for addr in $probe_list; do
 		if [ -n "$addr" ]; then
 		 	ping6 -q -W 1 -c 1 -s 0 -I "$LAN_DEV" "$addr" >/dev/null 2>/dev/null
 		fi
 	done
+	IFS="$OIFS"
 	
 	#Clears the probe list.
 	probe_list=""
@@ -455,7 +448,6 @@ create_name() {
 		if [ "$acceptmanuf" -gt 0 ] || [ "$type" != '01' ]; then
 			#Get name and use it.
 			cname=$(echo "$lease" | cut -d ' ' -f3)
-			logmsg "Using cached name for ${mac}: ${cname}"
 			eval "$1='$cname'"
 			return 0
 		fi
@@ -576,20 +568,21 @@ process() {
 			esac
 			
 			#Get the /64 prefix
-			local prefix=$(echo "$addr" | cut -d ':' -f1-4)
-
+			local prefix
+			addr_prefix64 prefix "$addr"
+	
 			#Check address scope and assign proper labels.
 			local suffix=""
 			local scope
-			if [ "${addr:0:4}" = "fe80" ]; then
+			if [ "$prefix" = 'fe80:0:0:0' ]; then
 				#Is link-local. Append corresponding label.
 				suffix="${ll_label}"
 				
 				#Sets scope ID to LL
 				scope=0
 				
-				#Remove the TMP label from the addresses that have the same IID
-				[ -n "$tmp_label" ] && remove_tmp_label "$addr"
+				#Remove the TMP label from the addresses from the same host that have the same IID
+				[ -n "$tmp_label" ] && remove_tmp_label "$addr" "$name"
 			elif [ "$prefix" = "$ula_prefix" ] || [ -z "$urt_label" -a "${addr:0:2}" = "fd" ] ; then
 				#Is ULA. Append corresponding label.
 				suffix="${ula_label}"
@@ -657,11 +650,20 @@ process() {
 #Adds static entry to hosts file
 add_static() {
 	local name="$1"
-	local addr="$2"
-	local scope="$3"
-	local mac="$4"
-	local perm="$5"
+	local prefix="$2"
+	local iid="$3"
+	local scope="$4"
+	local mac="$5"
+	local perm="$6"
 	local suffix=""
+	
+	#Builds the address if needed.
+	local addr
+	if [ -n "$iid" ]; then
+		join_prefix64_iid64 addr "$prefix" "$iid"
+	else
+		addr="$2"
+	fi
 
 	#Decides which suffix should be added to the name.
 	case "$scope" in
@@ -768,16 +770,16 @@ config_host() {
 	#Creates hosts file entries with link-local, ULA and GUA prefixes with corresponding IIDs.
 	local addr
 	if [ -n "$ll_iid" ] && [ "$ll_iid" != "0" ]; then
-		add_static "$name" "fe80::${ll_iid}" 0 "$mac" "$perm"
+		add_static "$name" "fe80::" "${ll_iid}" 0 "$mac" "$perm"
 	fi
 	if [ -n "$ula_prefix" ] && [ -n "$ula_iid" ] && [ "$ula_iid" != "0" ]; then
-		add_static "$name" "${ula_prefix}:${ula_iid}" 1 "$mac" "$perm"
+		add_static "$name" "${ula_prefix}" "${ula_iid}" 1 "$mac" "$perm"
 	fi
 	if [ -n "$wula_prefix" ] && [ -n "$wula_iid" ] && [ "$wula_iid" != "0" ]; then
-		add_static "$name" "${wula_prefix}:${wula_iid}" 2 "$mac" "$perm"
+		add_static "$name" "${wula_prefix}" "${wula_iid}" 2 "$mac" "$perm"
 	fi
 	if [ -n "$gua_prefix" ] && [ -n "$gua_iid" ] && [ "$gua_iid" != "0" ]; then
-		add_static "$name" "${gua_prefix}:${gua_iid}" 3 "$mac" "$perm"
+		add_static "$name" "${gua_prefix}" "${gua_iid}" 3 "$mac" "$perm"
 	fi
 }
 
@@ -821,10 +823,9 @@ main_service() {
 	gua_address=$(echo "$gua_cidr" | cut -d "/" -f1)
 
 	#Gets the network prefixes assuming /64 subnets.
-	ula_prefix=$(echo "$ula_address" | cut -d ':' -f1-4)
-	wula_prefix=$(echo "$wula_address" | cut -d ':' -f1-4)
-	gua_prefix=$(echo "$gua_address" | cut -d ':' -f1-4)
-
+	addr_prefix64 ula_prefix "$ula_address"
+	addr_prefix64 wula_prefix "$wula_address"
+	addr_prefix64 gua_prefix "$gua_address"
 
 	#Choose default the labels based on the available prefixes
 	if [ -n "$ula_prefix" ]; then
@@ -902,10 +903,10 @@ main_service() {
 	#Adds the router names
 	if [ -n "$ROUTER_NAME" ] && [ "$ROUTER_NAME" != "0" ]; then
 		logmsg "Generating names for the router's addresses"
-		[ -n "$ll_address" ] && add_static "$ROUTER_NAME" "$ll_address" 0
-		[ -n "$ula_address" ] && add_static "$ROUTER_NAME" "$ula_address" 1
-		[ -n "$wula_address" ] && add_static "$ROUTER_NAME" "$wula_address" 2
-		[ -n "$gua_address" ] && add_static "$ROUTER_NAME" "$gua_address" 3
+		[ -n "$ll_address" ] && add_static "$ROUTER_NAME" "$ll_address" "" 0
+		[ -n "$ula_address" ] && add_static "$ROUTER_NAME" "$ula_address" "" 1
+		[ -n "$wula_address" ] && add_static "$ROUTER_NAME" "$wula_address" "" 2
+		[ -n "$gua_address" ] && add_static "$ROUTER_NAME" "$gua_address" "" 3
 	fi
 
 	#Process /etc/config/dhcp and adds static hosts.
@@ -931,7 +932,7 @@ main_service() {
 	LOAD_STALE=1
 	AUTO_PROBE=1
 	load_neigh
-
+	
 	#If some auto-probe is enable, run one more round for detecting the new neighbors after ping6.
 	if [ "$PROBE_EUI64" -gt 0 ] || [ "$PROBE_IID" -gt 0 ]; then
 		logmsg "Syncing the hosts file with the neighbors table... Round #2"
@@ -982,8 +983,7 @@ snooping_service() {
 	local addr
 	
 	#Infinite loop. Keeps listening to DAD NS packets and pings the captured addresses.
-	ip link set "$LAN_DEV" allmulticast on
-	tcpdump -q -l -n -p -i "$LAN_DEV" 'src :: && icmp6 && ip6[40] == 135' 2>/dev/null |
+	tcpdump -q -l -n -p -i "$LAN_DEV" 'src :: && ip6[40] == 135' 2>/dev/null |
 		while IFS= read -r line
 		do
 			#Get the address from the line

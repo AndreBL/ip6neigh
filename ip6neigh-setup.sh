@@ -14,10 +14,11 @@
 #
 #	by André Lange	Dec 2016
 
-readonly VERSION='1.1.0'
+readonly VERSION='1.2.0'
 
 readonly BIN_DIR="/usr/bin/"
 readonly SBIN_DIR="/usr/sbin/"
+readonly LIB_DIR="/usr/lib/ip6neigh/"
 readonly SHARE_DIR="/usr/share/ip6neigh/"
 readonly TEMP_DIR="/tmp/ip6neigh/"
 
@@ -31,8 +32,10 @@ readonly REPO="https://raw.githubusercontent.com/AndreBL/ip6neigh/master/"
 
 #Installation list
 readonly inst_list="
+dir ${LIB_DIR}
 dir ${SHARE_DIR}
 file ${BIN_DIR}ip6neigh-setup ip6neigh-setup.sh x
+file ${LIB_DIR}ip6addr_functions.sh lib/ip6addr_functions.sh
 file ${SBIN_DIR}ip6neigh-svc.sh main/ip6neigh-svc.sh x
 file ${BIN_DIR}ip6neigh main/ip6neigh.sh x
 file /etc/init.d/ip6neigh etc/init.d/ip6neigh x
@@ -47,6 +50,7 @@ file /etc/init.d/ip6neigh
 file ${BIN_DIR}ip6neigh*
 file ${SBIN_DIR}ip6neigh*
 tree ${SHARE_DIR}
+tree ${LIB_DIR}
 "
 
 #Success message
@@ -175,7 +179,7 @@ install() {
 	echo "The installer script is up to date."
 	
 	#Check if already installed
-	[ -d "$SHARE_DIR" ] && echo -e "\n The existing installation of ip6neigh will be overwritten."
+	[ -d "$LIB_DIR" ] && echo -e "\n The existing installation of ip6neigh will be overwritten."
 	check_running
 	
 	#Process install list
@@ -206,7 +210,7 @@ install() {
 
 #Uninstallation routine
 uninstall() {
-	[ -d "$SHARE_DIR" ] || errormsg "ip6neigh is not installed on this system."
+	[ -d "$LIB_DIR" ] || [ -d "$SHARE_DIR" ] || errormsg "ip6neigh is not installed on this system."
 	check_running
 	
 	#Remove hosts and cache files
@@ -254,3 +258,4 @@ case "$1" in
 	"remove") uninstall;;
 	*) display_help "$0"
 esac
+

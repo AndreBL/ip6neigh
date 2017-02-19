@@ -21,7 +21,7 @@
 . /lib/functions/network.sh
 
 #Program definitions
-readonly VERSION="1.4.3"
+readonly VERSION="1.4.4"
 readonly HOSTS_FILE="/tmp/hosts/ip6neigh"
 readonly CACHE_FILE="/tmp/ip6neigh.cache"
 readonly SERVICE_NAME="ip6neigh-svc.sh"
@@ -397,10 +397,21 @@ oui_name() {
 	local mac=$(echo "$2" | tr -d ':')
 	local oui="${mac:0:6}"
 	
+	#Check if this is the broadcast MAC
+	if [ "$mac" = 'ffffffffffff' ]; then
+		eval "$1='Broadcast address'"
+		return 0
+	fi
+	
+	#Check if the MAC is a multicast address.
+	if [ "$((0x${oui:0:2} & 0x01))" != 0 ]; then
+		eval "$1='Multicast address'"
+		return 0
+	fi
+	
 	#Check if the MAC is locally administered.
 	if [ "$((0x${oui:0:2} & 0x02))" != 0 ]; then
-		#Returns LocAdmin as name and success.
-		eval "$1='LocAdmin'"
+		eval "$1='Locally administered'"
 		return 0
 	fi
 
@@ -416,7 +427,7 @@ oui_name() {
 	fi
 
 	#Manufacturer not found. Returns Unknown and success code.
-	eval "$1='Unknown'"
+	eval "$1='Unknown manufacturer'"
 	return 0
 }
 
