@@ -22,7 +22,7 @@
 . /usr/lib/ip6neigh/ip6addr_functions.sh
 
 #Program definitions
-readonly VERSION="1.4.1"
+readonly VERSION="1.4.2"
 readonly CONFIG_FILE="/etc/config/ip6neigh"
 readonly HOSTS_FILE="/tmp/hosts/ip6neigh"
 readonly CACHE_FILE="/tmp/ip6neigh.cache"
@@ -109,7 +109,9 @@ reload_hosts() {
 		reload_time="$now"
 		reload_pending=0
 		killall -1 dnsmasq
-	fi	
+	fi
+	
+	return 0
 }
 
 #Adds entry to hosts file
@@ -208,7 +210,7 @@ remove_tmp_label() {
 	#Move the temp file over the main file
 	mv "$TEMP_FILE" "$HOSTS_FILE"
 
-	logmsg "Removed the ${tmp_label} label from the addresses with IID: ${iid}"
+	logmsg "Removed the ${tmp_label} label from the addresses with IID ${iid} from ${name}"
 	reload_pending=1
 	return 0
 }
@@ -563,10 +565,15 @@ process() {
 	case "$status" in
 		#Neighbor is unreachable. Must be removed if it is not a predefined host from /etc/config/dhcp.
 		"FAILED")
-			#If this is a predefined host, do nothing.
-			[ "$type" = 0 ] && grep -q "[^0]. ${currname}$" "$CACHE_FILE" && return 0
+			#Get the line number that divides the two sections of the hosts file
+			local ln=$(grep -n '^#Discovered' "$HOSTS_FILE" | cut -d ':' -f1)
 			
-			#Remove the host entry.
+			#If this is not an address from the "discovered" section, do nothing.
+			awk "NR>${ln}"' {printf "%s\n",$1}' "$HOSTS_FILE" |
+				grep -q "^${addr}$"
+			[ "$?" = 0 ] || return 0
+			
+			#Remove the address.
 			remove "$addr"
 					
 			#Check if it was the last entry with that name.
