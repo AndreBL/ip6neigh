@@ -22,7 +22,7 @@
 . /usr/lib/ip6neigh/ip6addr_functions.sh
 
 #Program definitions
-readonly VERSION="1.4.4"
+readonly VERSION="1.4.5"
 readonly CONFIG_FILE="/etc/config/ip6neigh"
 readonly HOSTS_FILE="/tmp/hosts/ip6neigh"
 readonly CACHE_FILE="/tmp/ip6neigh.cache"
@@ -292,7 +292,7 @@ probe_addresses() {
 		base_iid=$(addr_iid64 "$baseaddr")
 
 		#Probe same IID for different scopes than this one.
-		if [ "$scope" != 0 ]; then add_probe "fe80::${base_iid}" 1; fi
+		if [ "$scope" != 0 ]; then add_probe "fe80:0:0:0:${base_iid}" 1; fi
 		if [ "$scope" != 1 ] && [ -n "$ula_prefix" ]; then add_probe "${ula_prefix}:${base_iid}" 1; fi
 		if [ "$scope" != 2 ] && [ -n "$wula_prefix" ]; then add_probe "${wula_prefix}:${base_iid}" 1; fi
 		if [ "$scope" != 3 ] && [ -n "$gua_prefix" ]; then add_probe "${gua_prefix}:${base_iid}" 1; fi
@@ -799,7 +799,7 @@ config_host() {
 	#Creates hosts file entries with link-local, ULA and GUA prefixes with corresponding IIDs.
 	local addr
 	if [ -n "$ll_iid" ] && [ "$ll_iid" != "0" ]; then
-		add_static "$name" "fe80::" "${ll_iid}" 0 "$mac" "$perm"
+		add_static "$name" "fe80:0:0:0" "${ll_iid}" 0 "$mac" "$perm"
 	fi
 	if [ -n "$ula_prefix" ] && [ -n "$ula_iid" ] && [ "$ula_iid" != "0" ]; then
 		add_static "$name" "${ula_prefix}" "${ula_iid}" 1 "$mac" "$perm"
