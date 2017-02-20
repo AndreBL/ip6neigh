@@ -22,7 +22,7 @@
 . /usr/lib/ip6neigh/ip6addr_functions.sh
 
 #Program definitions
-readonly VERSION="1.4.3"
+readonly VERSION="1.4.4"
 readonly CONFIG_FILE="/etc/config/ip6neigh"
 readonly HOSTS_FILE="/tmp/hosts/ip6neigh"
 readonly CACHE_FILE="/tmp/ip6neigh.cache"
@@ -280,17 +280,17 @@ probe_addresses() {
 		local OIFS="$IFS"
 		unset IFS
 		for haddr in $hlist; do
-			[ "$haddr" != "$addr" ] && add_probe "$haddr"
+			[ "$haddr" != "$addr" ] && add_probe "$haddr" 0
 		done
 		IFS="$OIFS"
 	fi
-
+	
 	#Check if is configured for probing addresses with the same IID
 	local base_iid=""
 	if [ "$PROBE_IID" -gt 0 ]; then
 		#Gets the interface identifier from the base address
 		base_iid=$(addr_iid64 "$baseaddr")
-		
+
 		#Probe same IID for different scopes than this one.
 		if [ "$scope" != 0 ]; then add_probe "fe80::${base_iid}" 1; fi
 		if [ "$scope" != 1 ] && [ -n "$ula_prefix" ]; then add_probe "${ula_prefix}:${base_iid}" 1; fi
@@ -302,10 +302,9 @@ probe_addresses() {
 	if [ "$PROBE_EUI64" -gt 0 ]; then
 		#Generates EUI-64 interface identifier
 		local eui64_iid=$(gen_eui64 "$mac")
-
 		#Only add to list if EUI-64 IID is different from the one that has been just added.
 		if [ "$eui64_iid" != "$base_iid" ]; then
-			if [ "$PROBE_EUI64" = "1" ] && [ "$scope" != 0 ]; then add_probe "fe80::${eui64_iid}" 1; fi
+			if [ "$PROBE_EUI64" = "1" ] && [ "$scope" != 0 ]; then add_probe "fe80:0:0:0:${eui64_iid}" 1; fi
 			if [ "$PROBE_EUI64" = "1" ] || [ "$scope" = 1 ]; then
 				if [ -n "$ula_prefix" ]; then add_probe "${ula_prefix}:${eui64_iid}" 1; fi
 			fi
@@ -317,6 +316,8 @@ probe_addresses() {
 			fi
 		fi
 	fi
+	
+
 	
 	#Exit if there is nothing to probe.
 	[ -n "$probe_list" ] || return 0
@@ -345,31 +346,31 @@ probe_addresses() {
 
 #Try to get a name from DHCPv6/v4 leases based on MAC.
 dhcp_name() {
-	local mac="$2"
+	local mac="$1"
 	local match
-	local dname=""
+	local name
 
 	#Look for a DHCPv6 lease with DUID-LL or DUID-LLT matching the neighbor's MAC address.
 	if [ "$DHCPV6_NAMES" -gt 0 ]; then
 		match=$(echo "$mac" | tr -d ':')
-		dname=$(grep -m 1 -E "^# ${LAN_DEV} (00010001.{8}|00030001)${match} [^ ]* [^-]" /tmp/hosts/odhcpd | cut -d ' ' -f5)
+		name=$(grep -m 1 -E "^# ${LAN_DEV} (00010001.{8}|00030001)${match} [^ ]* [^-]" /tmp/hosts/odhcpd | cut -d ' ' -f5)
 		
 		#Success getting name from DHCPv6.
-		if [ -n "$dname" ]; then
-			add_cache "$mac" "$dname" '06'
-			eval "$1='$dname'"
+		if [ -n "$name" ]; then
+			add_cache "$mac" "$name" '06'
+			echo "$name"
 			return 0
 		fi
 	fi
 
 	#If couldn't find a match in DHCPv6 leases then look into the DHCPv4 leases file.
 	if [ "$DHCPV4_NAMES" -gt 0 ]; then
-		dname=$(grep -m 1 -E " $mac [^ ]{7,15} ([^*])" /tmp/dhcp.leases | cut -d ' ' -f4)
+		name=$(grep -m 1 -E " $mac [^ ]{7,15} ([^*])" /tmp/dhcp.leases | cut -d ' ' -f4)
 		
 		#Success getting name from DHCPv4.
-		if [ -n "$dname" ]; then
-			add_cache "$mac" "$dname" '04'
-			eval "$1='$dname'"
+		if [ -n "$name" ]; then
+			add_cache "$mac" "$name" '04'
+			echo "$name"
 			return 0
 		fi
 	fi
@@ -384,24 +385,24 @@ oui_name() {
 	[ -f "$OUI_FILE" ] || return 1
 	
 	#Get MAC and separates OUI part.
-	local mac="$2"
+	local mac="$1"
 	local oui="${mac:0:6}"
 	
 	#Check if the MAC is locally administered.
 	if [ "$((0x${oui:0:2} & 0x02))" != 0 ]; then
-		#Returns LocAdmin as name and success.
-		eval "$1='LocAdmin'"
+		#Returns LocalAdmin as name and success.
+		echo 'LocalAdmin'
 		return 0
 	fi
 
 	#Searches for the OUI in the database.
 	local reg=$(gunzip -c "$OUI_FILE" | grep -m 1 "^$oui")
-	local oname="${reg:6}"
+	local name="${reg:6}"
 	
 	#Check if found.
-	if [ -n "$oname" ]; then
+	if [ -n "$name" ]; then
 		#Returns the manufacturer name and success code.
-		eval "$1='$oname'"
+		echo "$name"
 		return 0
 	fi
 
@@ -411,49 +412,50 @@ oui_name() {
 
 #Creates a name based on the manufacturer's name of the device.
 manuf_name() {
-	local mac="$2"
-	local mname
+	local mac="$1"
+	local name
 	
 	#Get info from the MAC.
 	local upmac=$(echo "$mac" | tr -d ':' | awk '{print toupper($0)}')
 	local nicid="${upmac:9}"
 
 	#Tries to get a name based on the OUI part of the MAC. Otherwise use Unknown.
-	local manuf="Unknown"
-	oui_name manuf "$upmac"
+	local manuf
+	manuf=$(oui_name "$upmac")
+	[ "$?" = 0 ] || manuf="Unknown"
 
 	#Keeps trying to create unique name.
-	mname="${manuf}-${nicid}"
+	name="${manuf}-${nicid}"
 	local count=0
 	local code
-	while grep -q " ${mname}$" "$CACHE_FILE" ; do
+	while grep -q " ${name}$" "$CACHE_FILE" ; do
 		#Prevents infinite loop.
 		if [ "$code" -ge 10 ]; then
-			logmsg "Too many name conflicts for ${mname}. Giving up."
+			logmsg "Too many name conflicts for ${name}. Giving up."
 			return 2
 		fi
 		
 		#Generate new name.
 		code=$(printf %x $count)
 		code=$(echo "${mac}${code}" | tr -d ':' | md5sum)
-		mname="${manuf}-${code:29:3}"
+		name="${manuf}-${code:29:3}"
 		true $(( code++ ))
-		logmsg "Name conflict for ${mac}. Trying ${mname}"
+		logmsg "Name conflict for ${mac}. Trying ${name}"
 	done
 	
 	#Writes entry to the cache with type 01.
-	add_cache "$mac" "$mname" '01'
+	add_cache "$mac" "$name" '01'
  	
 	#Returns the newly created name.
-	eval "$1='$mname'"
+	echo "$name"
 	return 0
 }
 
 #Creates a name for the host.
 create_name() {
-	local mac="$2"
-	local acceptmanuf="$3"
-	local cname
+	local mac="$1"
+	local acceptmanuf="$2"
+	local name
 	
 	#Look for a name in the cache file.
 	local lease
@@ -465,23 +467,24 @@ create_name() {
 		#Check if the cached entry can be used in this call.
 		if [ "$acceptmanuf" -gt 0 ] || [ "$type" != '01' ]; then
 			#Get name and use it.
-			cname=$(echo "$lease" | cut -d ' ' -f3)
-			eval "$1='$cname'"
+			echo "$lease" | cut -d ' ' -f3
 			return 0
 		fi
 	fi
 
 	#Try to get a name from DHCPv6/v4 leases.
-	if dhcp_name cname "$mac"; then
-		eval "$1='$cname'"
+	name=$(dhcp_name "$mac")
+	if [ "$?" = 0 ]; then
+		echo "$name"
 		return 0
 	fi
 
 	#Generates name from manufacturer if allowed in this call.
 	if [ "$MANUF_NAMES" -gt 0 ] && [ "$acceptmanuf" -gt 0 ]; then
 		#Get manufacturer name.
-		if manuf_name cname "$mac"; then
-			eval "$1='$cname'"
+		name=$(manuf_name "$mac")
+		if [ "$?" = 0 ]; then
+			echo "$name"
 			return 0
 		fi
 	fi
@@ -492,7 +495,7 @@ create_name() {
 
 #Gets the current name for an IPv6 address
 get_name() {
-	local addr="$2"
+	local addr="$1"
 	local matched
 	
 	#Check if the address already exists
@@ -502,12 +505,14 @@ get_name() {
 	[ "$?" != 0 ] && return 2
 	
 	#Check what kind of name it has
-	local gname=$(echo "$matched" | tr $'\t' ' ' | cut -d ' ' -f2)
-	local fname=$(echo "$gname" | cut -d '.' -f1)
-	eval "$1='$fname'"
+	local fqdn=$(echo "$matched" | tr $'\t' ' ' | cut -d ' ' -f2)
+	local name=$(echo "$fqdn" | cut -d '.' -f1)
+	
+	#Outputs the name
+	echo "$name"
 	
 	#Manufacturer name?
-	grep -q "01 ${fname}$" "$CACHE_FILE" && return 1
+	grep -q "01 ${name}$" "$CACHE_FILE" && return 1
 
 	#Stable name
 	return 0
@@ -535,7 +540,7 @@ process() {
 	local name
 	local currname
 	local type
-	get_name currname "$addr"
+	currname=$(get_name "$addr")
 	type="$?"
 
 	case "$status" in
@@ -571,7 +576,8 @@ process() {
 				#Address is using manufacturer name.
 				1)
 					#Create name for address, not allowing to generate from manufacturer again.
-					if create_name name "$mac" 0; then
+					name=$(create_name "$mac" 0)
+					if [ "$?" = 0 ]; then
 						#Success creating name. Replaces the unknown name.
 						logmsg "Unknown host $currname now has got a proper name. Replacing all entries."
 						rename "$currname" "$name"
@@ -583,7 +589,8 @@ process() {
 				#Address is new.
 				2)
 					#Create name for address, allowing to generate from manufacturer.
-					if ! create_name name "$mac" 1; then
+					name=$(create_name "$mac" 1)
+					if [ "$?" != 0 ]; then
 						#Nothing to be done if could not get a name.
 						return 0
 					fi
@@ -682,7 +689,7 @@ add_static() {
 	#Builds the address if needed.
 	local addr
 	if [ -n "$iid" ]; then
-		join_prefix64_iid64 addr "$prefix" "$iid"
+		addr=$(join_prefix64_iid64 "$prefix" "$iid")
 	else
 		addr="$2"
 	fi
@@ -945,6 +952,7 @@ main_service() {
 
 	#Send signal to dnsmasq to reload hosts files.
 	reload_hosts
+	
 
 	#Pings "all nodes" multicast address with source addresses from various scopes to speedup discovery.
 	ping6 -q -W 1 -c 3 -s 0 -I "$LAN_DEV" ff02::1 >/dev/null 2>/dev/null

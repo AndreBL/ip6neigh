@@ -15,7 +15,7 @@
 #
 #	by André Lange		Fev 2017
 
-#VERSION 1.1.0
+#VERSION 1.1.1
 
 #Scans the address from left to right
 #1: return var, 2: ip6addr
@@ -211,11 +211,11 @@ join_prefix64_iid64() {
 	
 	#Gets the prefix
 	[ "${prefix:$((${#prefix}-2)):2}" != '::' ] && prefix="${prefix}::" 
-	addr_prefix64 prefix "$prefix"
+	prefix=$(addr_prefix64 "$prefix")
 	
 	#Gets the IID
 	[ "${iid:0:2}" != '::' ] && iid="::${iid}" 
-	addr_iid64 iid "$iid"
+	iid=$(addr_iid64 "$iid")
 	
 	#Creates the new address by concatenation
 	newaddr="${prefix}:${iid}"
