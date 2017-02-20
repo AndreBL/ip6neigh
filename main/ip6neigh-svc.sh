@@ -22,7 +22,7 @@
 . /usr/lib/ip6neigh/ip6addr_functions.sh
 
 #Program definitions
-readonly VERSION="1.4.2"
+readonly VERSION="1.4.3"
 readonly CONFIG_FILE="/etc/config/ip6neigh"
 readonly HOSTS_FILE="/tmp/hosts/ip6neigh"
 readonly CACHE_FILE="/tmp/ip6neigh.cache"
@@ -187,8 +187,7 @@ remove_tmp_label() {
 	local name="$name"
 	
 	#Gets the interface identifier from the address
-	local iid
-	addr_iid64 iid "$addr"
+	local iid=$(addr_iid64 "$addr")
 	
 	#Get the list of addresses with the same IID from the same host
 	local match="^[^ ]*:${iid} ${name}\\${tmp_label}(\.|$)"
@@ -230,23 +229,15 @@ logmsg() {
 	return 0
 }
 
-#Returns 0 if the supplied IPv6 address has an EUI-64 interface identifier.
-is_eui64() {
-	echo "$1" | grep -q -E ':[^:]{0,2}ff:fe[^:]{2}:[^:]{1,4}$'
-	return "$?"	
-}
-
 #Tries to guess if the supplied IPv6 address is non-temporary.
 is_other_static() {
 	local addr="$1"
 	
 	#Gets the interface identifier from the address
-	local iid
-	addr_iid64 iid "$addr"
+	local iid=$(addr_iid64 "$addr")
 	
 	#Looks for a link-local address with the same IID and returns true if it finds one.
-	local lladdr
-	compress_addr lladdr "fe80:0:0:0:${iid}"
+	local lladdr=$(compress_addr "fe80:0:0:0:${iid}")
 	grep -q "^$lladdr " "$HOSTS_FILE" && return 0
 	
 	#Check if the IID looks like something the DHCPv6 server would create.
@@ -256,24 +247,10 @@ is_other_static() {
 	return 1
 }
 
-#Generates EUI-64 interface identifier based on MAC address
-gen_eui64() {
-	local mac=$(echo "$2" | tr -d ':')
-	local iid1="${mac:0:4}"
-	local iid2="${mac:4:2}ff:fe${mac:6:2}:${mac:8:4}"
-
-	#Flip U/L bit
-	iid1=$(printf %x $((0x${iid1} ^ 0x0200)))
-		
-	eval "$1=${iid1}:${iid2}"
-	return 0
-}
-
 #Adds an address to the probe list
 add_probe() {
 	#Compress the address
-	local addr
-	compress_addr addr "$1"
+	local addr=$(compress_addr "$1")
 	
 	#Do not add if the address already exist in some hosts file and unique flag was set on call.
 	[ "$2" -gt 0 ] && grep -q "^$addr[ ,"$'\t'"]" /tmp/hosts/* && return 0
@@ -312,7 +289,7 @@ probe_addresses() {
 	local base_iid=""
 	if [ "$PROBE_IID" -gt 0 ]; then
 		#Gets the interface identifier from the base address
-		addr_iid64 base_iid "$baseaddr"
+		base_iid=$(addr_iid64 "$baseaddr")
 		
 		#Probe same IID for different scopes than this one.
 		if [ "$scope" != 0 ]; then add_probe "fe80::${base_iid}" 1; fi
@@ -324,8 +301,7 @@ probe_addresses() {
 	#Check if is configured for probing MAC-based addresses
 	if [ "$PROBE_EUI64" -gt 0 ]; then
 		#Generates EUI-64 interface identifier
-		local eui64_iid
-		gen_eui64 eui64_iid "$mac"
+		local eui64_iid=$(gen_eui64 "$mac")
 
 		#Only add to list if EUI-64 IID is different from the one that has been just added.
 		if [ "$eui64_iid" != "$base_iid" ]; then
@@ -615,8 +591,7 @@ process() {
 			esac
 			
 			#Get the /64 prefix
-			local prefix
-			addr_prefix64 prefix "$addr"
+			local prefix=$(addr_prefix64 "$addr")
 	
 			#Check address scope and assign proper labels.
 			local suffix=""
@@ -659,7 +634,7 @@ process() {
 			#Check if it could be a temporary address
 			if [ "$scope" -ge 1 ] && [ "$scope" -le 3 ]; then
 				#Check if interface identifier is static
-				if ! is_eui64 "$addr" && ! is_other_static "$addr"; then
+				if ! addr_is_eui64 "$addr" && ! is_other_static "$addr"; then
 					#Interface identifier does not appear to be static. Adds temporary address label.
 					suffix="${tmp_label}${suffix}"
 				fi
@@ -801,7 +776,7 @@ config_host() {
 		iid=$(echo "$slaac" | awk '{print tolower($0)}')
 	else
 		#Generates EUI-64 interface identifier based on MAC
-		gen_eui64 iid "$mac"
+		iid=$(gen_eui64 "$mac")
 	fi
 
 	#Load custom interface identifiers for each scope of address.
@@ -874,9 +849,9 @@ main_service() {
 	gua_address=$(echo "$gua_cidr" | cut -d "/" -f1)
 
 	#Gets the network prefixes assuming /64 subnets.
-	addr_prefix64 ula_prefix "$ula_address"
-	addr_prefix64 wula_prefix "$wula_address"
-	addr_prefix64 gua_prefix "$gua_address"
+	ula_prefix=$(addr_prefix64 "$ula_address")
+	wula_prefix=$(addr_prefix64 "$wula_address")
+	gua_prefix=$(addr_prefix64 "$gua_address")
 
 	#Choose default the labels based on the available prefixes
 	if [ -n "$ula_prefix" ]; then
