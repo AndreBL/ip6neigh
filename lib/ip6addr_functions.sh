@@ -15,7 +15,7 @@
 #
 #	by André Lange		Fev 2017
 
-#VERSION 1.1.1
+#VERSION 1.1.2
 
 #Scans the address from left to right
 #1: return var, 2: ip6addr
@@ -90,11 +90,15 @@ expand_addr() {
 	[ -n "$1" ] || return 0
 
 	#Does it really need to be processed ?
-	if ! echo "$1" | grep -q '::'; then
-		#Print unmodified
-		echo "$1"
-		return 0
-	fi
+	case "$1" in
+		*'::'*);;
+		#Does not contain '::'
+		*)
+			#Print unmodified
+			echo "$1"
+			return 0
+		;;
+	esac
 		
 	#Save and reset the field separator
 	local OIFS="$IFS"
@@ -123,11 +127,15 @@ compress_addr() {
 
 	#Does it really need to be processed ?
 	local addr=":$1:"
-	if ! echo "$addr" | grep -q ':0:0:'; then
-		#Print unmodified
-		echo "$1"
-		return 0
-	fi
+	case "$addr" in
+		*':0:0:'*);;
+		#Does not contain ate least two consecutive null quibbles.
+		*)
+			#Print unmodified
+			echo "$1"
+			return 0
+		;;
+	esac
 	
 	#Save and reset the field separator
 	local OIFS="$IFS"
@@ -143,11 +151,14 @@ compress_addr() {
 	do
 		#New match string with length j
 		m="${z:0:$j}"
-		if echo "$addr" | grep -q "$m"; then
-			#Replace the first sequence found
-			result=$(echo "$addr" | sed "s/${m}/::/")
-			break
-		fi
+		case "$addr" in
+			#Contains this sequence of zeros
+			*"$m"*)
+				#Replace the first sequence found
+				result=$(echo "$addr" | sed "s/${m}/::/")
+				break
+			;;
+		esac
 	done
 	
 	#All-zeros result ?
