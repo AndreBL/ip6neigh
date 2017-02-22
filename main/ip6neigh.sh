@@ -21,31 +21,42 @@
 . /lib/functions/network.sh
 
 #Program definitions
-readonly VERSION="1.4.4"
-readonly HOSTS_FILE="/tmp/hosts/ip6neigh"
-readonly CACHE_FILE="/tmp/ip6neigh.cache"
-readonly SERVICE_NAME="ip6neigh-svc.sh"
-readonly SHARE_DIR="/usr/share/ip6neigh/"
+readonly CMD_TOOL_VERSION='1.4.5'
+readonly HOSTS_FILE='/tmp/hosts/ip6neigh'
+readonly CACHE_FILE='/tmp/ip6neigh.cache'
+readonly SERVICE_NAME='ip6neigh-svc.sh'
+readonly SBIN_DIR='/usr/sbin/'
+readonly SHARE_DIR='/usr/share/ip6neigh/'
+readonly SERVICE_SCRIPT="${SBIN_DIR}${SERVICE_NAME}"
 readonly OUI_FILE="${SHARE_DIR}oui.gz"
+
+#Print version info and return if requested
+if [ "$1" = '--version' ]; then
+	echo "ip6neigh Command-Line Script v${CMD_TOOL_VERSION}"
+	[ -f "$SERVICE_SCRIPT" ] && "$SERVICE_SCRIPT" --version
+	return 0
+fi
 
 #Display help text
 display_help() {
-	echo "ip6neigh Command Line Script v${VERSION}"
+	echo -e "ip6neigh Command-Line Script v${CMD_TOOL_VERSION}"
 	echo -e
 	echo -e "Usage: $CMD COMMAND ..."
 	echo -e
-	echo -e "Available commands:"
-	echo -e "\t{ start | restart | stop }"
-	echo -e "\t{ enable | disable }"
-	echo -e "\tlist\t[ all | static | discovered | active | host HOSTNAME ]"
-	echo -e "\tname\t{ ADDRESS }"
-	echo -e "\taddress\t{ FQDN } [ 1 ]"
-	echo -e "\tmac\t{ HOSTNAME | ADDRESS }"
-	echo -e "\toui\t{ MAC | download }"
-	echo -e "\tresolve\t{ FQDN | ADDRESS }"
-	echo -e "\twhois\t{ HOSTNAME | ADDRESS | MAC }"
+	echo -e 'Available commands:'
+	echo -e '\t{ start | restart | stop }'
+	echo -e '\t{ enable | disable }'
+	echo -e '\tlist\t[ all | static | discovered | active | host HOSTNAME ]'
+	echo -e '\tname\t{ ADDRESS }'
+	echo -e '\taddress\t{ FQDN } [ 1 ]'
+	echo -e '\tmac\t{ HOSTNAME | ADDRESS }'
+	echo -e '\toui\t{ MAC | download }'
+	echo -e '\tresolve\t{ FQDN | ADDRESS }'
+	echo -e '\twhois\t{ HOSTNAME | ADDRESS | MAC }'
 	echo -e
-	echo -e "Typing shortcuts: rst lst sta dis act hst addr downl res who whos"
+	echo -e '\t--version\tPrint version information and exit.'
+	echo -e
+	echo -e 'Typing shortcuts: rst lst sta dis act hst addr downl res who whos'
 	exit 1
 }
 

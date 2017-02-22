@@ -15,7 +15,14 @@
 #
 #	by André Lange		Fev 2017
 
-#VERSION 1.1.2
+#Program definitions
+IP6ADDR_LIB_VERSION='1.1.3'
+
+#Print version info and return if requested
+if [ "$1" = '--version' ]; then
+	echo "ip6addr Library Script v${IP6ADDR_LIB_VERSION}"
+	return 0
+fi
 
 #Scans the address from left to right
 #1: return var, 2: ip6addr

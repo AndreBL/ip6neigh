@@ -16,24 +16,30 @@
 #
 #	by André Lange		Dec 2016
 
-#Dependencies
+#Program definitions
+readonly SVC_VERSION='1.4.6'
+readonly CONFIG_FILE='/etc/config/ip6neigh'
+readonly HOSTS_FILE='/tmp/hosts/ip6neigh'
+readonly CACHE_FILE='/tmp/ip6neigh.cache'
+readonly OUI_FILE='/usr/share/ip6neigh/oui.gz'
+readonly TEMP_FILE='/tmp/ip6neigh.tmp'
+
+#Print version info if requested
+[ "$1" = '--version' ] && echo "ip6neigh Service Script v${SVC_VERSION}"
+
+#Load dependencies
 . /lib/functions.sh
 . /lib/functions/network.sh
 . /usr/lib/ip6neigh/ip6addr_functions.sh
 
-#Program definitions
-readonly VERSION="1.4.5"
-readonly CONFIG_FILE="/etc/config/ip6neigh"
-readonly HOSTS_FILE="/tmp/hosts/ip6neigh"
-readonly CACHE_FILE="/tmp/ip6neigh.cache"
-readonly OUI_FILE="/usr/share/ip6neigh/oui.gz"
-readonly TEMP_FILE="/tmp/ip6neigh.tmp"
+#Quit after printing the version info of the dependencies
+[ "$1" = '--version' ] && exit 0
 
 #Check if the user is trying to run this script on its own
 case "$1" in
 	'-s'|'-n');;
 	*)
-		echo "ip6neigh Service Script v${VERSION}"
+		echo "ip6neigh Service Script v${SVC_VERSION}"
 		echo -e
 		echo "This script is intended to be run only by its init script."
 		echo "If you want to start ip6neigh, type:"
@@ -226,6 +232,10 @@ logmsg() {
 		#Log to file
 		echo "$(date) $1" >> "$LOG"
 	fi
+	
+	#If -e argument was present, echo to stdout.
+	[ "$ECHO" = 1 ] && echo "$1"
+	
 	return 0
 }
 
@@ -839,7 +849,7 @@ main_service() {
 	fi
 
 	#Startup message
-	logmsg "Starting ip6neigh main service v${VERSION} for physdev $LAN_DEV with domain $DOMAIN"
+	logmsg "Starting ip6neigh main service v${SVC_VERSION} for physdev $LAN_DEV with domain $DOMAIN"
 	
 	#Var initialization
 	reload_time=0
@@ -1012,7 +1022,7 @@ snooping_service() {
 	fi
 
 	#Startup message
-	logmsg "Starting ip6neigh snooping service v${VERSION} for physdev $LAN_DEV"
+	logmsg "Starting ip6neigh snooping service v${SVC_VERSION} for physdev $LAN_DEV"
 
 	local line
 	local addr
@@ -1041,6 +1051,9 @@ snooping_service() {
 	logmsg "Terminating the snooping service"
 	return 0
 }
+
+#Check if echo flag is enabled
+[ "$2" = '-e' ] && ECHO=1
 
 #Check which service should run
 case "$1" in
