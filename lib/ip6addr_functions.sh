@@ -16,7 +16,7 @@
 #	by André Lange		Fev 2017
 
 #Program definitions
-IP6ADDR_LIB_VERSION='1.1.3'
+IP6ADDR_LIB_VERSION='1.2.0'
 
 #Print version info and return if requested
 if [ "$1" = '--version' ]; then
@@ -39,55 +39,101 @@ _left_scan() {
 		
 		#Current char
 		c="${1:$j:1}"
-		
-		#Stops when reached the end
-		[ -z "$c" ] && return $n
-		
-		if [ "$c" = ':' ]; then
+	
+		case "$c" in
+			#Stop when reached the end
+			''|'.') return $n;;
+			
 			#Quibble advance
-			x=$(($x+1))
-		else
-			#Copy character to quibble
-			n=$x
-			eval "q${n}=\"\${q${n}}${c}\""
-		fi
+			':') x=$(($x+1));;
+			
+			#Hex digit
+			*)
+				#Copy character to quibble
+				n=$x
+				eval "q${n}=\"\${q${n}}${c}\""
+			;;
+		esac
 	done
 	
 	return $n
 }
 
-#Scans the address from left to right
+#Scans the address from right to left
 #1: return var, 2: ip6addr
 _right_scan() {
 	local j c
 	local n=8
 	local f="$2"
+	local ismapped=0
 	
 	#Iterates through each character in reverse order
 	for j in $(seq $((${#1}-1)) -1 0)
 	do
 		#Stops when '::' is found
-		[ "${1:$(($j-1)):2}" = '::' ] && return 0
+		[ "${1:$(($j-1)):2}" = '::' ] && break
 		
 		#Current char
 		c="${1:$j:1}"
 		
-		#Stops when reached the end
-		[ -z "$c" ] && return 0
-		
-		if [ "$c" = ':' ]; then
-			#Quibble advance
-			n=$(($n-1))
+		case "$c" in
+			#Stops when reached the end (start)
+			'') return 0;;
 			
-			#Stops when reached the last quibble that was processed when scannin from left to right
-			[ "$n" = "$f" ] && return 0
-		else
-			#Copy character to quibble
-			eval "q${n}=\"${c}\${q${n}}\""
-		fi
+			#IPv4-mapped IPv6 address: skip one quibble and set flag
+			'.')
+				[ "$ismapped" = 0 ] && n=$(($n-1))
+				ismapped=1
+			;;
+			
+			#Quibble advance (backwards)
+			':')
+				n=$(($n-1))
+			
+				#Stop when reached the last quibble that was processed when scannin from left to right
+				[ "$n" = "$f" ] && return 0
+			;;
+			
+			#Hex digit
+			*)
+				#Copy character to quibble
+				eval "q${n}=\"${c}\${q${n}}\""
+			;;
+		esac
 	done
 	
-	return 0
+	#Needs to process IPv4-mapped IPv6 address ?
+	[ "$ismapped" = 1 ] || return 0
+	local d1 d2 d3 d4
+	n=4
+	
+	#Iterates through each character in reverse order
+	for j in $(seq $((${#1}-1)) -1 0)
+	do
+		#Current char
+		c="${1:$j:1}"
+		
+		case "$c" in
+			#Octed advance (backwards)
+			'.') n=$(($n-1));;
+			
+			#End of last (first) octed
+			':') break;;
+			
+			#Decimal digit
+			*)
+				#Copy character to octet
+				eval "d${n}=\"${c}\${d${n}}\""
+			;;
+		esac
+	done
+	
+	#Convert pairs of octets to 16-bit wide decimal numbers
+	eval q7=$((($d1<<8)+$d2))
+	eval q8=$((($d3<<8)+$d4))
+	
+	#Return signaling that q6 and q7 are decimal numbers
+	return 1
 }
 
 #Converts a compressed address representation to the expanded form
@@ -98,7 +144,7 @@ expand_addr() {
 
 	#Does it really need to be processed ?
 	case "$1" in
-		*'::'*);;
+		*'::'*|*'.'*);;
 		#Does not contain '::'
 		*)
 			#Print unmodified
@@ -117,8 +163,14 @@ expand_addr() {
 	_left_scan "$addr"
 	_right_scan "$addr" "$?"
 
-	#Creates the final address by printing all quibbles as hex numbers
-	printf '%x:%x:%x:%x:%x:%x:%x:%x\n' "0x0$q1" "0x0$q2" "0x0$q3" "0x0$q4" "0x0$q5" "0x0$q6" "0x0$q7" "0x0$q8"
+	#Check the return code
+	if [ "$?" = 0 ]; then
+		#Regular IPv6 address. Creates the final string by printing all quibbles as hex numbers.
+		printf '%x:%x:%x:%x:%x:%x:%x:%x\n' "0x0$q1" "0x0$q2" "0x0$q3" "0x0$q4" "0x0$q5" "0x0$q6" "0x0$q7" "0x0$q8"
+	else
+		#IPv4-mapped IPv6 address. The last two quibbles come from decimal numbers.
+		printf '%x:%x:%x:%x:%x:%x:%x:%x\n' "0x0$q1" "0x0$q2" "0x0$q3" "0x0$q4" "0x0$q5" "0x0$q6" "$q7" "$q8"
+	fi
 	
 	#Restore the field separator
 	IFS="$OIFS"
