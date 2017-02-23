@@ -21,7 +21,7 @@
 . /lib/functions/network.sh
 
 #Program definitions
-readonly CMD_TOOL_VERSION='1.4.5'
+readonly CMD_TOOL_VERSION='1.4.6'
 readonly HOSTS_FILE='/tmp/hosts/ip6neigh'
 readonly CACHE_FILE='/tmp/ip6neigh.cache'
 readonly SERVICE_NAME='ip6neigh-svc.sh'
@@ -196,23 +196,25 @@ format_fqdn() {
 	
 	#Check FQDN
 	local ffqdn="$2"
-	#Ends with .lan ?
-	echo "$2" | grep -q "\.$DOMAIN"
-	if [ "$?" = 0 ]; then
-		#Yes. Multiple labels ?
-		echo "$2" | grep -q ".*\..*\.$DOMAIN"
-		if [ "$?" != 0 ]; then
-			#No. It only has one and it must be removed.
-			ffqdn=$(echo "$2" | sed -r 's/(.*)\..*/\1/')
-		fi
-	else
-		#No. Has any label ?
-		echo "$2" | grep -q '\.'
-		if [ "$?" = 0 ]; then
+	
+	case "$ffqdn" in
+		#Ends with .lan ?
+		?*".$DOMAIN")
+			#Yes. Multiple labels ?
+			case "$2" in
+				?*.?*."$DOMAIN");;
+				*)
+					#No. It only has one and it must be removed.
+					ffqdn=$(echo "$2" | sed -r 's/(.*)\..*/\1/')
+				;;
+			esac
+		;;
+		#Has any label ?
+		*'.'*)
 			#Yes and is not .lan. Must add .lan in the end.
 			ffqdn="${2}.${DOMAIN}"
-		fi
-	fi
+		;;
+	esac
 	
 	#Escape dots
 	ffqdn=$(echo "$ffqdn" | sed 's/\./\\\./g')
@@ -262,18 +264,20 @@ show_mac() {
 	local name
 	
 	#Check if it's address or name.
-	echo "$1" | grep -q ':'
-	if [ "$?" = 0 ]; then
-		#It's an address.
-		name=$(
-			grep -m 1 -i "^$1 " "$HOSTS_FILE" |
-			cut -d ' ' -f2 |
-			cut -d '.' -f1
-		)
-	else
-		#It's a simple name or FQDN.
-		name=$(echo "$1" | cut -d '.' -f1)
-	fi
+	case "$1" in
+		*':'*)
+			#It's an address.
+			name=$(
+				grep -m 1 -i "^$1 " "$HOSTS_FILE" |
+				cut -d ' ' -f2 |
+				cut -d '.' -f1
+			)
+		;;
+		*)
+			#It's a simple name or FQDN.
+			name=$(echo "$1" | cut -d '.' -f1)
+		;;
+	esac
 	
 	[ -n "$name" ] || exit 3
 	
@@ -288,19 +292,21 @@ resolve_cmd() {
 	check_files
 	
 	#Check if it's address or name.
-	echo "$1" | grep -q ':'
-	if [ "$?" = 0 ]; then
-		#It's an address.
-		grep -m 1 -i "^$1 " "$HOSTS_FILE" |
-			awk '{printf "%s is named %s\n",$1,$2}'
-	else
-		#Prepare name for grep
-		local name
-		format_fqdn name "$1"
+	case "$1" in
+		*':'*)
+			#It's an address.
+			grep -m 1 -i "^$1 " "$HOSTS_FILE" |
+				awk '{printf "%s is named %s\n",$1,$2}'
+		;;
+		*)
+			#Prepare name for grep
+			local name
+			format_fqdn name "$1"
 
-		grep -i " ${name}$" "$HOSTS_FILE" |
-			awk '{printf "%s has address %s\n",$2,$1}'
-	fi
+			grep -i " ${name}$" "$HOSTS_FILE" |
+				awk '{printf "%s has address %s\n",$2,$1}'
+		;;
+	esac
 }
 
 #Displays the simple name (no FQDN) for the address or all addresses for the simple name.
@@ -315,17 +321,16 @@ whois_this() {
 	local reg
 	
 	#Check if it's an address.
-	echo "$1" | grep -q ':'
-	if [ "$?" = 0 ]; then
+	case "$1" in
 		#Check if it's a MAC address.
-		echo "$1" | grep -q '..:..:..:..:..:..'
-		if [ "$?" = 0 ]; then
+		??:??:??:??:??:??)
 			#MAC address. Get name from the cache file.
 			mac=$(echo "$1" | awk '{print tolower($0)}')
 			reg=$(grep -m 1 -i "^$1 " "$CACHE_FILE")
 			host=$(echo "$reg" | cut -d ' ' -f3)
-		else
-			#IPv6 address. Get name from the hosts file.
+		;;
+		#IPv6 address. Get name from the hosts file.
+		*':'*)
 			host=$(
 				grep -m 1 -i "^$1 " "$HOSTS_FILE" |
 				cut -d ' ' -f2 |
@@ -337,15 +342,16 @@ whois_this() {
 				grep -m 1 -i " $host" "$CACHE_FILE" |
 				cut -d ' ' -f1
 			)
-		fi
-	else
-		#Host
-		host=$(echo "$1" | cut -d '.' -f1)
-		reg=$(grep -m 1 -i " ${host}$" "$CACHE_FILE")
-		[ "$?" = 0 ] || exit 3
-		mac=$(echo "$reg" | cut -d ' ' -f1)
-		host=$(echo "$reg" | cut -d ' ' -f3)
-	fi
+		;;
+		#Host		
+		*)
+			host=$(echo "$1" | cut -d '.' -f1)
+			reg=$(grep -m 1 -i " ${host}$" "$CACHE_FILE")
+			[ "$?" = 0 ] || exit 3
+			mac=$(echo "$reg" | cut -d ' ' -f1)
+			host=$(echo "$reg" | cut -d ' ' -f3)
+		;;
+	esac
 	
 	#Get the OUI info.
 	if [ -n "$mac" ]; then
