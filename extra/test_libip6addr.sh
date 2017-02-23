@@ -14,6 +14,13 @@
 #
 #	by Craig Miller		20 Feb 2017
 
+#
+#	NOTE: when running this off router, the library is _not_ POSIX compliant 
+#		and will FAIL with 'dash'. On a desktop run the script using bash
+#
+#	bash test_libip6addr.sh -t
+#
+
 
 if [ -e ../lib/ip6addr_functions.sh ]; then
 	# used for testing off router
@@ -23,7 +30,21 @@ else
 	. /usr/lib/ip6neigh/ip6addr_functions.sh
 fi
 
-#VERSION 1.1.1
+TEST_VERSION=1.1.2
+
+function usage {
+           echo " $0 - exercises ip6neigh ip6addr_functions library "
+	       echo "	e.g. $0 -t "
+	       echo "	-t                               Run Tests"
+	       echo "	-f <lib-function> <parameter>    Test individual function"
+	       echo "	e.g. $0 -f expand_addr ::1"
+	       echo "	"
+	       echo "	NOTE: when using from desktop call from bash"
+	       echo "	e.g. bash $0 -t"
+	       echo "	"
+	       echo " By Craig Miller - Version: $TEST_VERSION"
+	       exit 1
+           }
 
 test() {
 
@@ -50,13 +71,17 @@ case "$1" in
 		# special cases
 		test ::1
 		test fd32:197d:3022:1101::
+		# IPv4 Mapped addresses (will fail)
+		test ::ffff:192.0.2.128
 	;;
 	
 	# call a specific function with arguments - Example: -f expand_addr ::1
 	'-f')
 		shift 1
 		eval "$*"
-		expand_addr ::2
+	;;
+	*)
+		usage
 	;;
 esac
 
