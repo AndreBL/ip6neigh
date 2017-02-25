@@ -8,10 +8,10 @@
 #
 # New options for host sections:
 # slaac		0=disabled, 1=enabled with EUI-64 IID, other value means
-#			"use this custom IID". Use a single leading ':' if the IID
-#			starts with zeros. See the example configs below.
+#			"use this custom IID". See the example configs below.
 # ll_iid	Override slaac IID for link-local address
 # ula_iid	Override slaac IID for ULA address
+# wula_iid	Override slaac IID for WULA address
 # gua_iid	Override slaac IID for GUA address
 # perm		Adds the host to the neighbors table with NUD state permanent.
 #			Will also apply to the host's DHCP IPv4 address.
