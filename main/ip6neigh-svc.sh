@@ -17,7 +17,7 @@
 #	by André Lange		Dec 2016
 
 #Program definitions
-readonly SVC_VERSION='1.4.6'
+readonly SVC_VERSION='1.4.7'
 readonly CONFIG_FILE='/etc/config/ip6neigh'
 readonly HOSTS_FILE='/tmp/hosts/ip6neigh'
 readonly CACHE_FILE='/tmp/ip6neigh.cache'
@@ -1028,7 +1028,8 @@ snooping_service() {
 	local addr
 	
 	#Infinite loop. Keeps listening to DAD NS packets and pings the captured addresses.
-	tcpdump -q -l -n -p -i "$LAN_DEV" 'src :: && ip6[40] == 135' 2>/dev/null |
+	ip link set "$LAN_DEV" allmulticast on
+	tcpdump -q -l -n -p -i "$LAN_DEV" 'src :: && icmp6 && ip6[40] == 135' 2>/dev/null |
 		while IFS= read -r line
 		do
 			#Get the address from the line
