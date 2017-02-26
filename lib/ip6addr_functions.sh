@@ -16,7 +16,7 @@
 #	by André Lange		Fev 2017
 
 #Program definitions
-IP6ADDR_LIB_VERSION='1.2.0'
+IP6ADDR_LIB_VERSION='1.3.0'
 
 #Print version info and return if requested
 if [ "$1" = '--version' ]; then
@@ -319,4 +319,40 @@ gen_eui64() {
 addr_is_eui64() {
 	echo "$1" | grep -q -E ':[^:]{0,2}ff:fe[^:]{2}:[^:]{1,4}$'
 	return "$?"	
+}
+
+#Generates a match string for an address with the same IID
+#1: expanded IID like 1:2:3:4
+gen_iid_match() {
+	local iid="q${1}w"
+	local comp
+	case "$iid" in
+		#4 zeros
+		q0:0:0:0w)	comp='q:w';;
+		
+		#3 zeros
+		q0:0:0:*)	comp=$(echo "$iid" | sed "s/q0:0:0:/q:/")	;;
+		*:0:0:0w)	comp=$(echo "$iid" | sed "s/:0:0:0w/::w/")	;;
+
+		#2 zeros
+		q0:0:*)		comp=$(echo "$iid" | sed "s/q0:0:/q:/")		;;
+		*:0:0:*)	comp=$(echo "$iid" | sed "s/:0:0:/::/")		;;
+		*:0:0w)		comp=$(echo "$iid" | sed "s/:0:0w/::w/")	;;
+		
+		#1 zero
+		q0:*)		comp=$(echo "$iid" | sed "s/q0:/q:/")		;;
+	esac
+	
+	if [ -n "$comp" ]; then
+		#Remove leading 'q' and 'w'
+		comp="${comp:1:$((${#comp}-2))}"
+		
+		#Match string
+		echo "[^ ]*(:${1}|:${comp})"
+	else
+		#Uncompressed only
+		echo "[^ ]*:$1"
+	fi
+	
+	return 0
 }

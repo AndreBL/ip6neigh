@@ -17,7 +17,7 @@
 #	by André Lange		Dec 2016
 
 #Program definitions
-readonly SVC_VERSION='1.4.7'
+readonly SVC_VERSION='1.4.8'
 readonly CONFIG_FILE='/etc/config/ip6neigh'
 readonly HOSTS_FILE='/tmp/hosts/ip6neigh'
 readonly CACHE_FILE='/tmp/ip6neigh.cache'
@@ -195,8 +195,11 @@ remove_tmp_label() {
 	#Gets the interface identifier from the address
 	local iid=$(addr_iid64 "$addr")
 	
+	#IID match string
+	local im=$(gen_iid_match "$iid")
+	
 	#Get the list of addresses with the same IID from the same host
-	local match="^[^ ]*:${iid} ${name}\\${tmp_label}(\.|$)"
+	local match="^${im} ${name}\\${tmp_label}(\.|$)"
 	local list
 	list=$(grep -E "$match" "$HOSTS_FILE")
 	
