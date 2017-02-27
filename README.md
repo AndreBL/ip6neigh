@@ -15,11 +15,14 @@ or simply
 
 ## Motivation
 
-IPv6 addresses are difficult to remember. DNS provides an abstraction layer, so that IP addresses do not have to be memorized. There are at least two situations where this set up is useful:
+IPv6 addresses are difficult to remember. DNS provides an abstraction layer, so that IP addresses do not have to be memorized. There are at least three situations where this set up is useful:
 
-1. When you need to trace some network activity through tcpdump or Realtime Connections page on LuCI and there are lots of IPv6 addresses there and you don't know who/what they belong to.
+1. When you need to trace some network activity through tcpdump or Realtime Connections page on LuCI and there are lots of IPv6 addresses there and you don't know who or what they belong to.
 
-2. When you are accessing your LAN hosts either locally or remotely through VPN. Even if the local and remote IPv4 subnets conflicts you can still use IPv6 ULA addresses (e.g FDxx:xxxx:...) to connect to your services. DNS names make this *much* easier.
+2. When your ISP delegates a dynamic IPv6 prefix. Using names to refer to hosts will help automatically updating firewall rules and AAAA address records for local hosts on a remote DDNS service.
+
+3. When you are accessing your LAN hosts either locally or remotely through VPN. If the local and remote IPv4 subnets conflicts you can still use IPv6 ULA addresses (e.g FDxx:xxxx:...) to connect to your services. DNS names make this *much* easier.
+
 
 ## Installation
 
@@ -46,8 +49,10 @@ IPv6 addresses are difficult to remember. DNS provides an abstraction layer, so 
 	Checking installer version...
 	The installer script is up to date.
 
+	Creating directory /usr/lib/ip6neigh/
 	Creating directory /usr/share/ip6neigh/
 	Downloading ip6neigh-setup.sh
+	Downloading lib/ip6addr_functions.sh
 	Downloading main/ip6neigh-svc.sh
 	Downloading main/ip6neigh.sh
 	Downloading etc/init.d/ip6neigh
@@ -106,6 +111,7 @@ Removing /usr/bin/ip6neigh-oui-download
 Removing /usr/bin/ip6neigh-setup
 Removing /usr/sbin/ip6neigh-svc.sh
 Removing directory tree /usr/share/ip6neigh/
+Removing directory tree /usr/lib/ip6neigh/
 
 The config file /etc/config/ip6neigh was kept in place for future use. Please remove this file manually if you will not need it anymore.
 
@@ -132,7 +138,7 @@ It is possible to see the host file via the LuCI web interface by using luci-app
 
 	config command
         	option name 'ip6neigh log'
-        	option command 'cat /tmp/log/ip6neigh.log'
+        	option command 'ip6neigh logread'
 	```
 
 3. Now log into the LuCI web interface:
@@ -170,12 +176,12 @@ It is possible to see the host file via the LuCI web interface by using luci-app
 * Computer.**TMP**.lan (a temporary address)
 * Computer.**LL**.lan (a link-local address)
 * Computer.**TMP.PUB**.lan (a temporary GUA)
-* Computer (no DNS label applied, e.g. a simple name)
+* Computer (no DNS label applied, e.g. a non-temporary ULA)
 
 DNS Labels used by `ip6neigh` can be configured in `/etc/config/ip6neigh` file.
 
-The rule of thumb for configuring DNS labels is to clear the label for the scope of address that you consider as preferred for local connectivity, and give DNS labels for every other scope of address, providing unique names to *all* IPv6 addresses on the network.
-By default, ip6neigh will use simple names (with no label) for non-temporary ULA addresses if the router's LAN interface has an ULA prefix. If no ULA prefix is present, ip6neigh will consider non-temporary GUA addresses as preferred for local connectivity and will give names without labels for them.
+The rule of thumb for configuring DNS labels is to clear with '0' the label for the scope of address that you consider as preferred for local connectivity, and give DNS labels for every other scope of address, providing unique names to *all* IPv6 addresses on the network.
+By default, ip6neigh will use simple names (with no label, such as Computer1) for non-temporary ULA addresses if the router's LAN interface has an ULA prefix. If no ULA prefix is present, ip6neigh will consider non-temporary GUA addresses as preferred for local connectivity and will give names without labels for them.
 	
 ## Tools
 
@@ -190,47 +196,59 @@ ip6neigh Command Line Script
 Usage: /usr/bin/ip6neigh COMMAND ...
 
 Command list:
-        { start | restart|rst | stop }
+        { start | restart | stop }
         { enable | disable }
-        list|lst        [ all | sta[tic] | dis[covered] ]
-        addr[ess]       { NAME } [ 1 ]
+        list            [ all | static | discovered | active | host HOSTNAME ]
         name            { ADDRESS }
-        res[olve]       { ADDRESS | NAME } [ 1 ]
-        who[is|s]       { NAME | ADDRESS | MAC }
+		address         { FQDN } [ 1 ]
+		mac             { HOSTNAME | ADDRESS }
+		oui             { MAC | download }
+        resolve         { FQDN | ADDRESS }
+        whois           { HOSTNAME | ADDRESS | MAC }
+		logread         [ REGEX ]
 
+		--version       Print version information and exit.
+
+Typing shortcuts: rst lst sta dis act hst addr downl res who whos log
 
 ```
 `ip6neigh` options include:
 
-* `list    [ all | sta[tic] | dis[covered] ]`
-With no extra argument: Shows all entries in hosts file, with comments and blank line.
-	* `all` Displays all entries in hosts file without comments or blank lines. Can be used for scripting purposes.
+* `list    [ all | static | discovered | active | host HOSTNAME ]`
+With no extra argument: Shows all entries in the hosts file, with comments and blank line.
+	* `all` Displays all entries in hosts file without comments or blank lines. May be used for scripting purposes.
 	* `static` Displays the static entries in the host file.
-	* `discovered` Displays the dynamically learned entries in the host file.
-	* This command replaces `ip6neigh_hosts_show.sh`
-*  `name    { ADDRESS }`
+	* `discovered` Displays the dynamically discovered hosts in the host file.
+	* `active` Displays the entries that have REACHABLE or STALE NUD status in the router's neighbors table. Helps to find out which hosts have been recently online on the network.
+	* `host HOSTNAME` Displays the entries that are related to a single host device.
+*  `name { ADDRESS }`
 Displays the FQDN (Fully Qualified Domain Name) for the IPv6 address. Depending on the user configuration in `/etc/config/ip6neigh`, the top level domain will not appear if the host has no DNS label.  
 * `address { NAME } [ 1 ]`
 Returns the IPv6 addresses for the FQDN. The top level domain name (e.g. 'lan') may be optionally omitted for convenience. Input examples: Laptop, Laptop.PUB, Laptop.PUB.lan, Laptop.TMP 
 	* This command has a clean output for external scripting, like supplying the address to DDNS Scripts or to a custom firewall script that generates rules for GUAs based on names because ISP is issuing a dynamic prefix.
 It is possible that hosts will have multiple temp addresses and they will have the same FQDN. If the extra argument '1' is supplied, limits the output to the first address associated with that FQDN.
 This command replaces `ip6neigh_ddns.sh`
-* `mac     { NAME | ADDRESS }`
-Shows the MAC address for the FQDN, simple name or IPv6 address. Clean output.
-* `host    { NAME | ADDRESS }`
-Verbose style output for resolving FQDN to IPv6 addresses or IPv6 address to FQDN. The top level domain name (e.g. 'lan') may be optionally omitted cor convenience and is not expected to be supplied for names that don't have labels.
+* `mac { NAME | ADDRESS }`
+Shows the MAC address for the host device or address. Clean output.
+* `oui { MAC | download }`
+Displays the manufacturer name for the supplied MAC address. If the argument is 'download', the local offline OUI database will be installed or updated.
+* `resolve { FQDN | ADDRESS }`
+Verbose style output for resolving FQDN to IPv6 addresses or IPv6 address to FQDN. The top level domain name (e.g. 'lan') may be optionally omitted cor convenience.
 Input examples for FQDN: Laptop, Laptop.PUB, Laptop.PUB.lan, Laptop.TMP ...
-* `whois   { ADDRESS | MAC | NAME }`
-Verbose style output for helping to trace a device's SLAAC activity. `whois ipv6_addr` and `whois mac_addr` are designed to identify the device that owns such addresses. If the argument is a name, it is expected to be the simple name that represents the device like 'Laptop' (not a FQDN) and it will list all FQDN names and the corresponding addresses that belong to that device.
+* `whois { HOSTNAME | ADDRESS | MAC }`
+Displays host name information, related FQDN, MAC address and manufacturer info for the specified host, address or MAC.
+* `logread [ REGEX ]`
+Prints the ip6neigh log output, passing anything in the optional REGEX argument as the match string to grep command.
+* `--version`
+Displays version information.
 
 
-
-`ip6neigh` not only lists the discovered hosts, but also can do name resolution based on name, IPv6 address or even MAC address. Some of the options (such as list, name and address) are specifically designed in assisting the user in other scripting projects, and therefore have very simple (easily parsed) output.
+`ip6neigh` not only lists the discovered hosts, but also can do name resolution based on host name, IPv6 address or even MAC address. Some of the options (such as list, name and address) are specifically designed in assisting the user in other scripting projects, and therefore have very simple (easily parsed) output.
 
 
 
 ## Installing MAC OUI lookup feature
-`ip6neigh-svc.sh` can use an offline MAC address OUI lookup, if the file `oui.gz` is present. This makes names more readable for clients which do not send their hostname (e.g. the Chromebook) when making a DHCP request.
+`ip6neigh-svc.sh` can use an offline MAC address OUI lookup, if the file `oui.gz` is present. This makes names more identifiable for clients which do not send their hostname (e.g. the Chromebook) when making a DHCP request.
 
 To install, run `ip6neigh oui download` command, which will install oui.gz for offline oui lookup.
 
@@ -248,7 +266,7 @@ Moving the file...
 The new compressed OUI database file was successfully moved to: /usr/share/ip6neigh/oui.gz
 ```
 
-Hosts which do not send their hostname (e.g. Unknown-9BA.LL.lan) will now have an OUI manufacterer as part of the name, such as Speed-9BA.LL.lan (Speed is a Speed Dragon Multimedia Limited MAC device).
+Hosts which do not send their hostname (e.g. Unknown-9BA.LL.lan) will now have an OUI manufacterer name as part of the host name, such as Speed-9BA.LL.lan (Speed is a Speed Dragon Multimedia Limited MAC device).
 
 ## Troubleshooting
 
@@ -301,7 +319,7 @@ hau.TMP.lan                    2001:db8:ebbd:4::46f
 
 ## Dependencies
 
-One only needs to install `ip` and `curl` packages. It has been tested on Chaos Calmer (v15.05.1) of OpenWrt. 
+One only needs to install `ip` and `curl` packages. It has been tested on Chaos Calmer (v15.05.1 and v15.05) of OpenWrt. 
 
 Additional dependency for 'snooping' mode is `tcpdump`.
 
