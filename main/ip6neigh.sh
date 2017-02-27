@@ -21,7 +21,7 @@
 . /lib/functions/network.sh
 
 #Program definitions
-readonly CMD_TOOL_VERSION='1.4.6'
+readonly CMD_TOOL_VERSION='1.5.0'
 readonly HOSTS_FILE='/tmp/hosts/ip6neigh'
 readonly CACHE_FILE='/tmp/ip6neigh.cache'
 readonly SERVICE_NAME='ip6neigh-svc.sh'
@@ -53,10 +53,11 @@ display_help() {
 	echo -e '\toui\t{ MAC | download }'
 	echo -e '\tresolve\t{ FQDN | ADDRESS }'
 	echo -e '\twhois\t{ HOSTNAME | ADDRESS | MAC }'
+	echo -e '\tlogread\t[ REGEX ]'
 	echo -e
 	echo -e '\t--version\tPrint version information and exit.'
 	echo -e
-	echo -e 'Typing shortcuts: rst lst sta dis act hst addr downl res who whos'
+	echo -e 'Typing shortcuts: rst lst sta dis act hst addr downl res who whos log'
 	exit 1
 }
 
@@ -108,6 +109,7 @@ load_config() {
 	config_load ip6neigh
 	config_get LAN_IFACE config lan_iface lan
 	config_get DOMAIN config domain
+	config_get LOG config log 0
 
 	#Gets the physical devices
 	network_get_physdev LAN_DEV "$LAN_IFACE"
@@ -474,6 +476,32 @@ oui_cmd() {
 	esac
 }
 
+#Show log contents
+log_read() {
+	load_config
+	
+	case "$LOG" in
+		#LOG disabled
+		0)
+			>&2 echo "Logging is disabled."
+			exit 2
+		;;
+		
+		#Syslog
+		1)
+			logread |
+				grep 'ip6neigh: ' |
+				grep -i -E "$1"
+		;;
+		
+		#File
+		*) [ -f "$LOG" ] &&	grep -i -E "$1" "$LOG";;
+	esac 
+	
+	return 0
+}
+
+
 #This script file
 CMD="$0"
 
@@ -491,5 +519,6 @@ case "$1" in
 	'resolve'|'res')	resolve_cmd "$2" "$3";;
 	'whois'|'whos'|'who') whois_this "$2";;
 	'oui')				oui_cmd "$2";;
+	'logread'|'log')	log_read "$2";;
 	*)					display_help;;
 esac
