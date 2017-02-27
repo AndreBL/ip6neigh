@@ -134,7 +134,7 @@ It is possible to see the host file via the LuCI web interface by using luci-app
 	#ip6neigh commands
 	config command
         	option name 'IPv6 Neighbors'
-        	option command 'ip6neigh list'
+        	option command 'ip6neigh list active'
 
 	config command
         	option name 'ip6neigh log'
@@ -210,7 +210,6 @@ Command list:
 		--version       Print version information and exit.
 
 Typing shortcuts: rst lst sta dis act hst addr downl res who whos log
-
 ```
 `ip6neigh` options include:
 
@@ -241,7 +240,6 @@ Displays host name information, related FQDN, MAC address and manufacturer info 
 Prints the ip6neigh log output, passing anything in the optional REGEX argument as the match string to grep command.
 * `--version`
 Displays version information.
-
 
 `ip6neigh` not only lists the discovered hosts, but also can do name resolution based on host name, IPv6 address or even MAC address. Some of the options (such as list, name and address) are specifically designed in assisting the user in other scripting projects, and therefore have very simple (easily parsed) output.
 
