@@ -6,10 +6,12 @@
 The purpose of the script is to automatically generate and update IPv6 DNS host names on the OpenWrt router, making access to devices by name (either IPv4 or IPv6) on your network a snap. It does this by creating a hosts file giving local DNS names to IPv6 addresses that IPv6 enabled devices took via SLAAC mechanism.
 
 Rather than using clunky IP addresses (v4 or v6), devices on your network now become:
+
 * router.lan
 * mycomputer.lan
 
 or simply
+
 * router
 * mycomputer
 
@@ -184,7 +186,103 @@ DNS Labels used by `ip6neigh` can be configured in `/etc/config/ip6neigh` file.
 
 The rule of thumb for configuring DNS labels is to clear with '0' the label for the scope of address that you consider as preferred for local connectivity, and give DNS labels for every other scope of address, providing unique names to *all* IPv6 addresses on the network.
 By default, ip6neigh will use simple names (with no label, such as Computer1) for non-temporary ULA addresses if the router's LAN interface has an ULA prefix. If no ULA prefix is present, ip6neigh will consider non-temporary GUA addresses as preferred for local connectivity and will give names without labels for them.
-	
+
+## Customizing ip6neigh configuration
+For normal operations, you won't need to do any custom configuration. However, `ip6neigh` is more powerful than just doing DNS resolution for IPv6 hosts.
+
+### Config: Predefined Hosts
+ip6neigh will discover new hosts on the LAN and assign them names. But you may want to **predefine** the common hosts or servers on your network. This can be done by editing the `/etc/config/dhcp` file.
+
+Predefined hosts are added to the `/etc/config/dhcp` file using the following:
+
+```
+# Devices that use EUI-64 interface identifiers (IIDs) for all scopes:
+config host
+	option name		'Android-John'
+	#Copy the MAC address of the device.
+	option mac		'1a:41:8e:83:66:74'
+	option slaac	'1'
+
+```
+For Windows machines which do not use RFC 4862 EUI-64 SLAAC addressing (based on the MAC address):
+
+```
+# Windows machines or other hosts that do not use EUI-64 IIDs but
+# use other static IIDs instead:
+config host
+	option name		'Laptop-Paul'
+	#Copy the MAC address of the device.
+	option mac		'2e:36:e7:85:d3:3b'
+	#Copy the interface identifier from the link-local address of
+	#of the device.
+	option slaac	'daa1:4554:747b:1f50'
+
+```
+Cryptographically Opaque (RFC  7217) can not be currently defined as predefined hosts (MacOS X 10.12, and iOS 10) as the host portion of the address (the IID) changes when the prefix changes.
+
+### Configuration: Dynamic DNS (DDNS)
+TBD
+
+### Configuration: Dynamic Firewall Rules
+When ISP changes the prefix, it can be challenging to update the firewall rules to permit external access. `ip6neigh` can also support the dynamic updating of firewall rules, based on DNS names (which remain constant, even though the prefix changes). 
+
+To setup Dynamic Firewall access rules:
+
+1. Set up predefined hosts (see above)
+2. Edit /etc/firewall.user and add lines:
+
+	```
+	 #ip6neigh
+	 ip6tables -N wan6_forwarding
+	 ip6tables -A forwarding_wan_rule -s 2000::/3 -d 		2000::/3 -j wan6_forwarding
+	```
+3. Edit /etc/config/firewall and right after
+
+	```
+    config include
+     	   option path '/etc/firewall.user'
+	```
+	add these two lines:
+
+	```
+    config include
+            option path '/tmp/etc/firewall.ip6neigh'
+	```
+4. Create your custom dynamic firewall script /root/ip6neigh_rules.sh using this template:
+
+	```
+    #!/bin/sh
+
+    #Initialize the dynamic firewall script
+    FW_SCRIPT='/tmp/etc/firewall.ip6neigh'
+    echo "ip6tables -F wan6_forwarding" > $FW_SCRIPT
+
+    #Create new rules for dynamic IPv6 addresses here. Example for accepting TCP connections on port 80 on a local server that identifies itself as 'Webserver' through DHCP.
+    echo "ip6tables -A wan6_forwarding -d $(ip6neigh address Webserver.PUB 1) -p tcp --dport 80 -j ACCEPT" >> $FW_SCRIPT
+
+    #Run the generated temp firewall script
+    /bin/sh "$FW_SCRIPT"
+	```
+5. Add your /root/ip6neigh_rules.sh script to ip6neigh config file /etc/config/ip6neigh
+
+	```
+    list fw_script '/root/ip6neigh_rules.sh'
+	```
+6. Restart the OpenWrt firewall and ip6neigh:
+
+	```
+    /etc/init.d/firewall restart
+    ip6neigh restart
+    ```
+7. Wait a minute and check if the rules were successfully created:
+
+	```
+    root@OpenWrt:~# ip6tables -L wan6_forwarding
+    Chain wan6_forwarding (1 references)
+    target     prot opt source               destination
+    ACCEPT     tcp      anywhere             Webserver.PUB.lan     tcp dpt:www
+    ```
+
 ## Tools
 
 Included is a versatile tool called `ip6negh` which controls most of the functions, starting, stopping, as well as an aid in troubleshooting.
@@ -357,3 +455,4 @@ The script is written by André Lange. Suggestions, and additions are welcome. A
 ## License
 
 This project is open source, under the GPLv2 license (see [LICENSE](LICENSE))
+
