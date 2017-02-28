@@ -329,7 +329,13 @@ ip6neigh is designed to operate in a dual-stack network with both IPv4 and IPv6 
 
 ip6neigh relies on DHCPv4 client to report its hostname (option 12) or DHCPv6 client option 39. If the client does not report the hostname, then an "Unknown-XXX" name will be applied with *XXX* as the last three hex digits of the MAC address. If the offline MAC OUI lookup has been activated (by running the command ip6neigh oui download), then the MAC OUI manufacturer name will be used instead of Unknown.
 
-Names will be discovered in the following order (and priority):
+SLAAC addresses are discovered by three methods:
+
+1. Passively monitoring of changes in the reachability status of neighbors that occur in the router's IPv6 neighbors table.
+2. If package `tcpdump` is installed and option dad_snoop is set in /etc/config/ip6neigh, the script will listen to Neighbor Solicitation (NS) messages that are part of the Duplicate Address Detection (DAD) process. The new addresses will be discovered as soon as their host joins the network.
+3. After discovering any new addresses with the previous methods, ip6neigh will actively check if the host has took more addresses by guessing different Interface Identifiers (IID) that could match that same host and then sending NS messages to those guessed addresses.
+
+Names for the discovered addresses will be learned or generated in the following order (and priority):
 
 1. Static hosts in /etc/config/dhcp
 2. DHCPv6 leases
