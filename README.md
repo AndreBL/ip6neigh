@@ -23,6 +23,8 @@ IPv6 addresses are difficult to remember. DNS provides an abstraction layer, so 
 
 3. When you are accessing your LAN hosts either locally or remotely through VPN. If the local and remote IPv4 subnets conflicts you can still use IPv6 ULA addresses (e.g FDxx:xxxx:...) to connect to your services. DNS names make this *much* easier.
 
+When using ip6neigh, names are applied, rather than cryptic IPv6 addresses, such as this OpenWRT connection page.
+![luci connections](art/luci_connections.png?raw=true)
 
 ## Installation
 
