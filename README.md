@@ -228,13 +228,14 @@ When ISP changes the prefix, it can be challenging to update the firewall rules 
 
 To setup Dynamic Firewall access rules:
 
-1. Set up predefined hosts (see above)
+1. Set up predefined hosts (see above).
 2. Edit /etc/firewall.user and add lines:
 
 	```
 	 #ip6neigh
+	 touch /tmp/etc/firewall.ip6neigh
 	 ip6tables -N wan6_forwarding
-	 ip6tables -A forwarding_wan_rule -s 2000::/3 -d 		2000::/3 -j wan6_forwarding
+	 ip6tables -A forwarding_wan_rule -d 2000::/3 -j wan6_forwarding
 	```
 3. Edit /etc/config/firewall and right after
 
@@ -253,15 +254,15 @@ To setup Dynamic Firewall access rules:
 	```
     #!/bin/sh
 
-    #Initialize the dynamic firewall script
-    FW_SCRIPT='/tmp/etc/firewall.ip6neigh'
-    echo "ip6tables -F wan6_forwarding" > $FW_SCRIPT
+    #Initialize the temp firewall script
+    TMP_SCRIPT='/tmp/etc/firewall.ip6neigh'
+    echo "ip6tables -F wan6_forwarding" > $TMP_SCRIPT
 
     #Create new rules for dynamic IPv6 addresses here. Example for accepting TCP connections on port 80 on a local server that identifies itself as 'Webserver' through DHCP.
-    echo "ip6tables -A wan6_forwarding -d $(ip6neigh address Webserver.PUB 1) -p tcp --dport 80 -j ACCEPT" >> $FW_SCRIPT
+    echo "ip6tables -A wan6_forwarding -d $(ip6neigh addr Webserver.PUB 1) -p tcp --dport 80 -j ACCEPT" >> $TMP_SCRIPT
 
     #Run the generated temp firewall script
-    /bin/sh "$FW_SCRIPT"
+    /bin/sh "$TMP_SCRIPT"
 	```
 5. Add your /root/ip6neigh_rules.sh script to ip6neigh config file /etc/config/ip6neigh
 
