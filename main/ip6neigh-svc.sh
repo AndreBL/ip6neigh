@@ -17,7 +17,7 @@
 #	by André Lange		Dec 2016
 
 #Program definitions
-readonly SVC_VERSION='1.4.8'
+readonly SVC_VERSION='1.5.0'
 readonly CONFIG_FILE='/etc/config/ip6neigh'
 readonly HOSTS_FILE='/tmp/hosts/ip6neigh'
 readonly CACHE_FILE='/tmp/ip6neigh.cache'
@@ -73,6 +73,7 @@ config_get ULA_LABEL config ula_label
 config_get WULA_LABEL config wula_label
 config_get GUA_LABEL config gua_label
 config_get TMP_LABEL config tmp_label
+config_get MAN_LABEL config man_label
 config_get URT_LABEL config unrouted_label
 config_get_bool DHCPV6_NAMES config dhcpv6_names 1
 config_get_bool DHCPV4_NAMES config dhcpv4_names 1
@@ -84,6 +85,7 @@ config_get_bool PROBE_HOST config probe_host 1
 config_get FLUSH config flush 1
 config_get FW_SCRIPT config fw_script
 config_get LOG config log 0
+config_get SETUP_RADVD config setup_radvd 0
 
 #Gets the physical devices
 network_get_physdev LAN_DEV "$LAN_IFACE"
@@ -252,9 +254,6 @@ is_other_static() {
 	#Looks for a link-local address with the same IID and returns true if it finds one.
 	local lladdr=$(compress_addr "fe80:0:0:0:${iid}")
 	grep -q "^$lladdr " "$HOSTS_FILE" && return 0
-	
-	#Check if the IID looks like something the DHCPv6 server would create.
-	[ "${iid:0:6}" = '0:0:0:' ] && return 0
 	
 	#Otherwise returns false
 	return 1
@@ -651,10 +650,13 @@ process() {
 				scope=4
 			fi
 			
-			#Check if it could be a temporary address
+			#Check if it needs some secondary label
 			if [ "$scope" -ge 1 ] && [ "$scope" -le 3 ]; then
-				#Check if interface identifier is static
-				if ! addr_is_eui64 "$addr" && ! is_other_static "$addr"; then
+				#Managed address ?
+				if addr_is_managed "$addr"; then
+					#Appears to be a managed address. Adds the MAN label.
+					suffix="${man_label}${suffix}"
+				elif ! addr_is_eui64 "$addr" && ! is_other_static "$addr"; then
 					#Interface identifier does not appear to be static. Adds temporary address label.
 					suffix="${tmp_label}${suffix}"
 				fi
@@ -884,9 +886,10 @@ main_service() {
 	fi
 
 	#Prefix-independent default labels
-	ll_label="LL"
-	tmp_label="TMP"
-	urt_label="UNROUTED"
+	ll_label='LL'
+	tmp_label='TMP'
+	man_label='MAN'
+	urt_label='UNROUTED'
 
 	#Override the default labels based with user supplied options.
 	if [ -n "$LL_LABEL" ]; then
@@ -909,6 +912,10 @@ main_service() {
 		if [ "$TMP_LABEL" = '0' ]; then tmp_label=""
 		else tmp_label="$TMP_LABEL"; fi
 	fi
+	if [ -n "$MAN_LABEL" ]; then
+		if [ "$MAN_LABEL" = '0' ]; then man_label=""
+		else man_label="$MAN_LABEL"; fi
+	fi
 	if [ -n "$URT_LABEL" ]; then
 		if [ "$URT_LABEL" = '0' ]; then urt_label=""
 		else urt_label="$URT_LABEL"; fi
@@ -920,6 +927,7 @@ main_service() {
 	if [ -n "$wula_label" ]; then wula_label=".${wula_label}" ; fi
 	if [ -n "$gua_label" ]; then gua_label=".${gua_label}" ; fi
 	if [ -n "$tmp_label" ]; then tmp_label=".${tmp_label}" ; fi
+	if [ -n "$man_label" ]; then man_label=".${man_label}" ; fi
 	if [ -n "$urt_label" ]; then urt_label=".${urt_label}" ; fi
 		
 	#Clears the cache file
@@ -1000,6 +1008,38 @@ main_service() {
 			fi
 		done
 	fi
+	
+	#Check if allowed to setup radvd
+	if [ "$SETUP_RADVD" -gt 0 ] && [ -n "$gua_prefix" ] && which radvd >/dev/null; then
+		#Store the current prefix in the temp file
+		local new_prefix="${gua_prefix}::/64"
+		echo "$new_prefix" > "/tmp/etc/prefix.${LAN_DEV}"
+				
+		#Persistent file for storing the old prefix
+		local file='/etc/deprecate.prefix'
+
+		#Read the old prefix from the persistent file
+		local old_prefix=$(cat "$file" 2>/dev/null)
+
+		#Store the new prefix to be the next old one
+		echo "$new_prefix" > "$file"
+
+		#Check if the prefix has changed
+		if [ -n "$old_prefix" ] && [ "$old_prefix" != "$new_prefix" ]; then
+			#Go on and configure the old prefix for deprecation
+			uci set radvd.deprecate.prefix="$old_prefix"
+			uci set radvd.deprecate.ignore=0
+			uci commit radvd
+		else
+			#Disable the deprecate config if no old prefix
+			uci set radvd.deprecate.ignore=1
+			uci commit radvd
+		fi
+		
+		#Restart radvd
+		/etc/init.d/radvd enabled && /etc/init.d/radvd restart
+	fi
+	
 	 
 	#Infinite main loop. Keeps monitoring changes in IPv6 neighbor's reachability status and call process() routine.
 	logmsg "Monitoring changes in the neighbor's table..."

@@ -77,6 +77,11 @@ config ip6neigh 'config'
 	# Writing '0' clears the label.
 	# Default: 'TMP'
 	#option tmp_label	'0'
+	
+	# Secondary label for managed address. Will be applied to any addresses with IID
+	# that match '0:0:0:*'. Writing '0' clears the label.
+	# Default: 'MAN'
+	#option man_label	'0'
 
 	# Get names from DHCPv6 leases. 0=disabled, 1=enabled.
 	# Default: '1'

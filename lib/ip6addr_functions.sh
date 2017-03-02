@@ -16,7 +16,7 @@
 #	by André Lange		Fev 2017
 
 #Program definitions
-IP6ADDR_LIB_VERSION='1.3.0'
+IP6ADDR_LIB_VERSION='1.4.0'
 
 #Print version info and return if requested
 if [ "$1" = '--version' ]; then
@@ -319,6 +319,18 @@ gen_eui64() {
 addr_is_eui64() {
 	echo "$1" | grep -q -E ':[^:]{0,2}ff:fe[^:]{2}:[^:]{1,4}$'
 	return "$?"	
+}
+
+#Returns 0 if the supplied IPv6 address appears to have a managed interface identifier.
+#1: ip6addr
+addr_is_managed() {
+	#Check if the IID looks like something the DHCPv6 server would create.
+	local iid=$(addr_iid64 "$1")
+	case "$iid" in
+		'0:0:0:'*) return 0;;
+	esac
+	
+	return 1
 }
 
 #Generates a match string for an address with the same IID

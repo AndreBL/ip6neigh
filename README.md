@@ -381,7 +381,7 @@ Hosts which do not send their hostname (e.g. Unknown-9BA.LL.lan) will now have a
 You can also check the log file (enabled/disabled in `/etc/config/ip6negh`)
 
 ```
-# cat /tmp/log/ip6neigh.log
+# ip6neigh logread
 Fri Dec 23 23:44:31 UTC 2016 Starting ip6neigh script for physdev br-lan with domain lan
 Fri Dec 23 23:44:31 UTC 2016 Network does not have ULA prefix. Clearing label for GUAs.
 Fri Dec 23 23:44:31 UTC 2016 Generating predefined SLAAC addresses for router
