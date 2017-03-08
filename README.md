@@ -221,9 +221,11 @@ config host
 Cryptographically Opaque (RFC  7217) can not be currently defined as predefined hosts (MacOS X 10.12, and iOS 10) as the host portion of the address (the IID) changes when the prefix changes.
 
 ### Configuration: Dynamic DNS (DDNS)
-Dynamic DNS utilizes the `ddns-scripts` package. `ip6neigh` allows one to register an IPv6 host on the LAN as an external name. Providing there is a firewall rule to allow access to the Host, then external access is available.
+Dynamic DNS utilizes the `ddns-scripts` package. In the usual case, ddns-scripts is used to update the router's address into the AAAA record of an external DDNS service. `ip6neigh` allows one to update the DDNS with an arbitrary internal host's address instead of the router's own address.
 
-In the ISP environment where **delegated prefix** changes, it is better to define the DDNS Host with a name. To accomplish this:
+Providing there is a firewall rule to allow access to the internal host, then running an externally accessible IPv6 server (i.e. web, ftp, RDP) is possible even when the **delegated prefix** if frequently changed by the ISP.
+
+To accomplish this:
 
 1. Set up the DDNS config at the router to obtain the Host IPv6 address via an external script. Set this script to be the ip6neigh command that will echo the intended host's GUA:
 
