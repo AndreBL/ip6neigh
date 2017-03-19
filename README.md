@@ -1,9 +1,9 @@
 ## Giving local DNS names to IPv6 SLAAC addresses 
-#### OpenWrt shell script
+#### OpenWrt/LEDE shell script
 
 ## Synopsis
 
-The purpose of the script is to automatically generate and update IPv6 DNS host names on the OpenWrt router, making access to devices by name (either IPv4 or IPv6) on your network a snap. It does this by creating a hosts file giving local DNS names to IPv6 addresses that IPv6 enabled devices took via SLAAC mechanism.
+The purpose of the script is to automatically generate and update IPv6 DNS host names on the OpenWrt/LEDE router, making access to devices by name (either IPv4 or IPv6) on your network a snap. It does this by creating a hosts file giving local DNS names to IPv6 addresses that IPv6 enabled devices took via SLAAC mechanism.
 
 Rather than using clunky IP addresses (v4 or v6), devices on your network now become:
 
@@ -30,13 +30,22 @@ When using ip6neigh, names are applied, rather than cryptic IPv6 addresses, such
 
 ## Installation
 
-1. Install dependencies, `ip` and `curl`
+1. Install dependencies, `curl` and `ip-full`
 
 	```
 	# opkg update
-	# opkg install ip
-	# opkg install curl
+	# opkg install curl ip-full
 	```
+
+For LEDE systems: If installing on LEDE v17.01.0, the ip-full package needs to be upgraded to a newer build that has the 'ip monitor' bug already fixed. Please navigate to https://downloads.lede-project.org/snapshots/packages/ , find your platform directory, download ip-full_4.4.0-**9**_<platform>.ipk (or latest version) and install it on the router. Example for the x86_64 platform:
+	```
+	# cd /tmp
+	# wget **http**://downloads.lede-project.org/snapshots/packages/**x86_64/base/ip-full_4.4.0-9_x86_64.ipk**
+	# opkg remove ip-full
+	# opkg install ip-full_4.4.0-9_x86_64.ipk
+	# rm ip-full_4.4.0-9_x86_64.ipk
+	```
+Hint: When copying the download URL from your browser, change `https` to `http` like the example above to allow downloading without having to install certificates. The LEDE trunk build do not need this step since r3778-312b9dc. 
 	
 2. Download the installer script script to /tmp on your router by running the following command:
 	
@@ -429,9 +438,11 @@ Laptop.TMP.lan                 fd32:197d:3022:1101:4c62:38c9:247d:5b1f
 
 ## Dependencies
 
-One only needs to install `ip` and `curl` packages. It has been tested on Chaos Calmer (v15.05.1 and v15.05) of OpenWrt.
-
-Note about LEDE support: The author intends to confirm support for this script on LEDE as well. However, the current version of the ip-full package in LEDE has an issue that prevents its operation. Ticket: https://bugs.lede-project.org/index.php?do=details&task_id=620
+One only needs to install `ip-full` and `curl` packages. It has been tested on the following router operating systems:
+* OpenWrt Chaos Calmer v15.05.1
+* OpenWrt Chaos Calmer v15.05
+* LEDE Snapshot r3778-312b9dc
+* LEDE v17.01.0 (requires upgrading ip-full package to v4.4.0-9 or later, from the snapshot build)
 
 Additional dependency for 'snooping' mode is `tcpdump`.
 
