@@ -38,6 +38,7 @@ When using ip6neigh, names are applied, rather than cryptic IPv6 addresses, such
 	```
 
 For LEDE systems: If installing on LEDE v17.01.0, the ip-full package needs to be upgraded to a newer build that has the 'ip monitor' bug already fixed. Please navigate to https://downloads.lede-project.org/snapshots/packages/ , find your platform directory, download ip-full_4.4.0-**9**_<platform>.ipk (or latest version) and install it on the router. Example for the x86_64 platform:
+
 	```
 	# cd /tmp
 	# wget **http**://downloads.lede-project.org/snapshots/packages/**x86_64/base/ip-full_4.4.0-9_x86_64.ipk**
@@ -45,6 +46,7 @@ For LEDE systems: If installing on LEDE v17.01.0, the ip-full package needs to b
 	# opkg install ip-full_4.4.0-9_x86_64.ipk
 	# rm ip-full_4.4.0-9_x86_64.ipk
 	```
+	
 Hint: When copying the download URL from your browser, change `https` to `http` like the example above to allow downloading without having to install certificates. The LEDE trunk build do not need this step since r3778-312b9dc. 
 	
 2. Download the installer script script to /tmp on your router by running the following command:
