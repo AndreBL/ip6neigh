@@ -37,7 +37,7 @@ When using ip6neigh, names are applied, rather than cryptic IPv6 addresses, such
 	# opkg install curl ip-full
 	```
 
-	**NOTE:** Special procedure for LEDE systems: When using LEDE v17.01.0, the `ip-full` package needs to be upgraded to a newer build that which has fixed the 'ip monitor' bug. Please navigate to [https://downloads.lede-project.org/snapshots/packages/](https://downloads.lede-project.org/snapshots/packages/) , find your platform directory, download `ip-full_4.4.0-9_platform.ipk` (or latest version) and install it on the router. Example for the x86_64 platform:
+	**NOTE:** Special procedure for LEDE systems: When using LEDE v17.01.0, the `ip-full` package needs to be upgraded to a newer build which has fixed the 'ip monitor' bug. Please navigate to [https://downloads.lede-project.org/snapshots/packages/](https://downloads.lede-project.org/snapshots/packages/) , find your platform directory, download `ip-full_4.4.0-9_platform.ipk` (or latest version) and install it on the router. Example for the x86_64 platform:
 	
 	```
 	# cd /tmp
@@ -47,9 +47,9 @@ When using ip6neigh, names are applied, rather than cryptic IPv6 addresses, such
 	# rm ip-full_4.4.0-9_x86_64.ipk
 	```
 
-	**Hint:** When copying the download URL from your browser, change `https` to `http` like the example above to allow downloading without having to install certificates.
+	**Hint:** When copying the download URL from your browser, change `https` to `http` like the example above to allow downloading without having to install CA certificates.
 	
-	LEDE trunk builds do not need this extra procedure since r3778-312b9dc. OpenWrt releases do *not* require upgrading `ip-full` package.
+	LEDE trunk builds do not need this extra procedure since r3778-312b9dc. OpenWrt releases do *not* require upgrading the `ip-full` package version (normal installation by `opkg install ip-full` is enough).
 	
 2. Download the installer script script to /tmp on your router by running the following command:
 	
