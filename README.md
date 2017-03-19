@@ -37,7 +37,7 @@ When using ip6neigh, names are applied, rather than cryptic IPv6 addresses, such
 	# opkg install curl ip-full
 	```
 
-	Special procedure for LEDE systems: If installing on LEDE v17.01.0, the ip-full package needs to be upgraded to a newer build that has the 'ip monitor' bug already fixed. Please navigate to https://downloads.lede-project.org/snapshots/packages/ , find your platform directory, download `ip-full_4.4.0-**9**_platform.ipk` (or latest version) and install it on the router. Example for the x86_64 platform:
+	Special procedure for LEDE systems: If installing on LEDE v17.01.0, the ip-full package needs to be upgraded to a newer build that has the 'ip monitor' bug already fixed. Please navigate to https://downloads.lede-project.org/snapshots/packages/ , find your platform directory, download `ip-full_4.4.0-9_platform.ipk` (or latest version) and install it on the router. Example for the x86_64 platform:
 	
 	```
 	# cd /tmp
