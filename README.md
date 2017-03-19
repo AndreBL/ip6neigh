@@ -49,7 +49,7 @@ When using ip6neigh, names are applied, rather than cryptic IPv6 addresses, such
 
 	**Hint:** When copying the download URL from your browser, change `https` to `http` like the example above to allow downloading without having to install CA certificates.
 	
-	LEDE trunk builds do not need this extra procedure since r3778-312b9dc. OpenWrt releases do *not* require upgrading the `ip-full` package version (normal installation by `opkg install ip-full` is enough).
+	OpenWrt releases and LEDE trunk builds since r3778-312b9dcdo *do not* require upgrading the `ip-full` package version (normal installation by `opkg install ip-full` is enough).
 	
 2. Download the installer script script to /tmp on your router by running the following command:
 	
