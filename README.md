@@ -187,6 +187,27 @@ It is possible to see the host file via the LuCI web interface by using luci-app
 
 	```
 
+<!---
+root@Palolo:~# ip6neigh list active
+Speed-9BA                      fd37:5218::213:3bff:fe99:19ba
+Speed-9BA.GUA.lan              2001:470:ebbd:8:213:3bff:fe99:19ba
+Speed-9BA.LL.lan               fe80::213:3bff:fe99:19ba
+Speed-9BA.TMP.GUA.lan          2001:470:ebbd:8:7d78:be79:db01:10a1
+Speed-9BA.TMP.lan              fd37:5218::7d78:be79:db01:10a1
+Speed-9BA.UNROUTED.lan         2001:470:ebbd:c:213:3bff:fe99:19ba
+alarm                          fd37:5218::50e9:e6ff:fede:c80f
+alarm.GUA.lan                  2001:470:ebbd:8:50e9:e6ff:fede:c80f
+alarm.LL.lan                   fe80::50e9:e6ff:fede:c80f
+alarm.TMP.GUA.lan              2001:470:ebbd:8:ade5:b6f3:2458:8dfb
+alarm.TMP.GUA.lan              2001:470:ebbd:8:b021:a7f2:829d:8fb4
+alarm.UNROUTED.lan             2001:470:ebbd:c:50e9:e6ff:fede:c80f
+alarm.UNROUTED.lan             2001:470:ebbd:c:c92f:3204:9b2:24a9
+hau                            fd37:5218::d69a:20ff:fe01:e0a4
+hau.GUA.lan                    2001:470:ebbd:8:d69a:20ff:fe01:e0a4
+hau.LL.lan                     fe80::d69a:20ff:fe01:e0a4
+
+--->
+
 ## Using DNS Labels
 `ip6neigh` uses DNS labels, which can be thought of as subdomains for the top level domain `lan`. Example DNS labels (in bold) that `ip6neigh` use are:
 
