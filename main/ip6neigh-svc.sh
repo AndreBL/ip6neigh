@@ -17,7 +17,7 @@
 #	by André Lange		Dec 2016
 
 #Program definitions
-readonly SVC_VERSION='1.5.1'
+readonly SVC_VERSION='1.6.0'
 readonly CONFIG_FILE='/etc/config/ip6neigh'
 readonly HOSTS_FILE='/tmp/hosts/ip6neigh'
 readonly CACHE_FILE='/tmp/ip6neigh.cache'
@@ -68,7 +68,7 @@ config_get LAN_IFACE config lan_iface lan
 config_get WAN_IFACE config wan_iface wan6
 config_get DOMAIN config domain
 config_get ROUTER_NAME config router_name Router
-config_get LL_LABEL config ll_label
+config_get LLA_LABEL config lla_label
 config_get ULA_LABEL config ula_label
 config_get WULA_LABEL config wula_label
 config_get GUA_LABEL config gua_label
@@ -631,9 +631,9 @@ process() {
 			local scope
 			if [ "$prefix" = 'fe80:0:0:0' ]; then
 				#Is link-local. Append corresponding label.
-				suffix="${ll_label}"
+				suffix="${lla_label}"
 				
-				#Sets scope ID to LL
+				#Sets scope ID to LLA
 				scope=0
 				
 				#Remove the TMP label from the addresses from the same host that have the same IID
@@ -726,7 +726,7 @@ add_static() {
 	#Decides which suffix should be added to the name.
 	case "$scope" in
 		#Link-local
-		0) if [ -n "${ll_label}" ]; then suffix="${ll_label}.${DOMAIN}"; fi;;
+		0) if [ -n "${lla_label}" ]; then suffix="${lla_label}.${DOMAIN}"; fi;;
 
 		#ULA
 		1) if [ -n "${ula_label}" ]; then suffix="${ula_label}.${DOMAIN}"; fi;;
@@ -817,18 +817,18 @@ config_host() {
 
 	#Load custom interface identifiers for each scope of address.
 	#Uses EUI-64 when not specified.
-	local ll_iid
+	local lla_iid
 	local ula_iid
 	local gua_iid
-	config_get ll_iid "$1" ll_iid "$iid"
+	config_get lla_iid "$1" lla_iid "$iid"
 	config_get ula_iid "$1" ula_iid "$iid"
 	config_get wula_iid "$1" wula_iid "$iid"
 	config_get gua_iid "$1" gua_iid "$iid"
 
 	#Creates hosts file entries with link-local, ULA and GUA prefixes with corresponding IIDs.
 	local addr
-	if [ -n "$ll_iid" ] && [ "$ll_iid" != "0" ]; then
-		add_static "$name" "fe80:0:0:0" "${ll_iid}" 0 "$mac" "$perm"
+	if [ -n "$lla_iid" ] && [ "$lla_iid" != "0" ]; then
+		add_static "$name" "fe80:0:0:0" "${lla_iid}" 0 "$mac" "$perm"
 	fi
 	if [ -n "$ula_prefix" ] && [ -n "$ula_iid" ] && [ "$ula_iid" != "0" ]; then
 		add_static "$name" "${ula_prefix}" "${ula_iid}" 1 "$mac" "$perm"
@@ -875,11 +875,11 @@ main_service() {
 	reload_pending=1
 
 	#Gets the IPv6 addresses from the LAN device.
-	ll_cidr=$(ip -6 addr show "$LAN_DEV" scope link 2>/dev/null | grep -m 1 'inet6' | awk '{print $2}')
+	lla_cidr=$(ip -6 addr show "$LAN_DEV" scope link 2>/dev/null | grep -m 1 'inet6' | awk '{print $2}')
 	ula_cidr=$(ip -6 addr show "$LAN_DEV" scope global 2>/dev/null | grep 'inet6 fd' | grep -m 1 -v 'dynamic' | awk '{print $2}')
 	wula_cidr=$(ip -6 addr show "$LAN_DEV" scope global noprefixroute dynamic 2>/dev/null | grep 'inet6 fd' | awk '{print $2}')
 	gua_cidr=$(ip -6 addr show "$LAN_DEV" scope global noprefixroute 2>/dev/null | grep -m 1 'inet6 [^fd]' | awk '{print $2}')
-	ll_address=$(echo "$ll_cidr" | cut -d "/" -f1)
+	lla_address=$(echo "$lla_cidr" | cut -d "/" -f1)
 	ula_address=$(echo "$ula_cidr" | cut -d "/" -f1)
 	wula_address=$(echo "$wula_cidr" | cut -d "/" -f1)
 	gua_address=$(echo "$gua_cidr" | cut -d "/" -f1)
@@ -897,23 +897,23 @@ main_service() {
 	#Choose default the labels based on the available prefixes
 	if [ -n "$ula_prefix" ]; then
 		#ULA prefix is available. No label for ULA. WAN side ULA becomes 'ULA'
-		wula_label="ULA"
-		gua_label="PUB"
+		wula_label='ULA'
+		gua_label='GUA'
 	elif [ -n "$wula_prefix" ]; then
-		#No ULA prefix. WULA is available. No label for ULA and WULA. Default for PUB.
-		gua_label="PUB"
+		#No ULA prefix. WULA is available. No label for ULA and WULA. GUA use default.
+		gua_label='GUA'
 	fi
 
 	#Prefix-independent default labels
-	ll_label='LL'
+	lla_label='LL'
 	tmp_label='TMP'
 	man_label='MAN'
 	urt_label='UNROUTED'
 
 	#Override the default labels based with user supplied options.
-	if [ -n "$LL_LABEL" ]; then
-		if [ "$LL_LABEL" = '0' ]; then ll_label=""
-		else ll_label="$LL_LABEL"; fi
+	if [ -n "$LLA_LABEL" ]; then
+		if [ "$LLA_LABEL" = '0' ]; then lla_label=""
+		else lla_label="$LLA_LABEL"; fi
 	fi
 	if [ -n "$ULA_LABEL" ]; then
 		if [ "$ULA_LABEL" = '0' ]; then ula_label=""
@@ -941,7 +941,7 @@ main_service() {
 	fi
 
 	#Adds a dot before each label
-	if [ -n "$ll_label" ]; then ll_label=".${ll_label}" ; fi
+	if [ -n "$lla_label" ]; then lla_label=".${lla_label}" ; fi
 	if [ -n "$ula_label" ]; then ula_label=".${ula_label}" ; fi
 	if [ -n "$wula_label" ]; then wula_label=".${wula_label}" ; fi
 	if [ -n "$gua_label" ]; then gua_label=".${gua_label}" ; fi
@@ -976,7 +976,7 @@ main_service() {
 	#Adds the router names
 	if [ -n "$ROUTER_NAME" ] && [ "$ROUTER_NAME" != "0" ]; then
 		logmsg "Generating names for the router's addresses"
-		[ -n "$ll_address" ] && add_static "$ROUTER_NAME" "$ll_address" "" 0
+		[ -n "$lla_address" ] && add_static "$ROUTER_NAME" "$lla_address" "" 0
 		[ -n "$ula_address" ] && add_static "$ROUTER_NAME" "$ula_address" "" 1
 		[ -n "$wula_address" ] && add_static "$ROUTER_NAME" "$wula_address" "" 2
 		[ -n "$gua_address" ] && add_static "$ROUTER_NAME" "$gua_address" "" 3

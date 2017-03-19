@@ -1,5 +1,7 @@
 #!/bin/sh
 
+#ip6neigh hotplug script version 1.6.0
+
 readonly SERVICE_NAME="ip6neigh-svc.sh"
 
 pgrep -f "$SERVICE_NAME" >/dev/null || exit 0

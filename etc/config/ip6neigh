@@ -48,7 +48,7 @@ config ip6neigh 'config'
 
 	# Custom label for link-local addresses. Writing '0' clears the label.
 	# Default: 'LL'
-	#option ll_label	'0'
+	#option lla_label	'0'
 
 	# Label for LAN unique local addresses (ULA). Writing '0' clears the label.
 	# Default is no label for ULAs.
@@ -60,7 +60,7 @@ config ip6neigh 'config'
 	#option wula_label	'0'
 
 	# Label for globally unique addresses (GUA). Writing '0' clears the label.
-	# Defaults to 'PUB' if the network has ULA or WULA prefix and no label if the
+	# Defaults to 'GUA' if the network has ULA or WULA prefix and no label if the
 	# network does not have neither ULA nor WULA prefix.
 	#option gua_label	'0'
 	

@@ -1,8 +1,10 @@
 #!/bin/sh /etc/rc.common
 
+#ip6neigh init.d script
+
 START=96
 
-readonly VERSION="1.1.1"
+readonly VERSION="1.6.0"
 readonly SBIN_PATH="/usr/sbin/"
 readonly SERVICE_NAME="ip6neigh-svc.sh"
 readonly SERVICE_SCRIPT="${SBIN_PATH}${SERVICE_NAME}"
