@@ -14,7 +14,7 @@
 #
 #	by André Lange	Dec 2016
 
-readonly VERSION='1.2.0'
+readonly VERSION='1.6.0'
 
 readonly BIN_DIR="/usr/bin/"
 readonly SBIN_DIR="/usr/sbin/"
@@ -168,7 +168,12 @@ uninstall_line() {
 
 #Installation routine
 install() {
+	#Create temp dir
 	mkdir -p "$TEMP_DIR" || errormsg "Failed to create directory $TEMP_DIR"
+	
+	#Check dependencies
+	which ip >/dev/null || errormsg "ip6neigh requires package 'ip' to be installed before running this setup script. Please install 'ip' with:\n\nopkg update; opkg install ip"
+	which curl >/dev/null || errormsg "ip6neigh requires package 'curl' to be installed before running this setup script. Please install 'curl' with:\n\nopkg update; opkg install curl"
 	
 	#Check if the install list version match the repository
 	echo "Checking installer version..."
@@ -177,6 +182,9 @@ install() {
 	local rem_version=$(cut -d '.' -f1-2 "${TEMP_DIR}VERSION")
 	[ "$loc_version" = "$rem_version" ] || errormsg "This installation script is out of date. Please visit https://github.com/AndreBL/ip6neigh and check if a new version of the installer is available for download."
 	echo "The installer script is up to date."
+	
+	#Check if installing on LEDE
+	grep -q LEDE /etc/os-release 2>/dev/null && echo -e "\nWarning: Installation will proceed, but LEDE operating system is currently unsupported due to an issue in command 'ip monitor'. More info on https://github.com/AndreBL/ip6neigh"
 	
 	#Check if already installed
 	[ -d "$LIB_DIR" ] && echo -e "\n The existing installation of ip6neigh will be overwritten."

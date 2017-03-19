@@ -876,7 +876,7 @@ main_service() {
 
 	#Gets the IPv6 addresses from the LAN device.
 	lla_cidr=$(ip -6 addr show "$LAN_DEV" scope link 2>/dev/null | grep -m 1 'inet6' | awk '{print $2}')
-	ula_cidr=$(ip -6 addr show "$LAN_DEV" scope global 2>/dev/null | grep 'inet6 fd' | grep -m 1 -v 'dynamic' | awk '{print $2}')
+	ula_cidr=$(ip -6 addr show "$LAN_DEV" scope global 2>/dev/null | grep 'inet6 fd' | grep -m 1 -E -v 'dynamic|/128' | awk '{print $2}')
 	wula_cidr=$(ip -6 addr show "$LAN_DEV" scope global noprefixroute dynamic 2>/dev/null | grep 'inet6 fd' | awk '{print $2}')
 	gua_cidr=$(ip -6 addr show "$LAN_DEV" scope global noprefixroute 2>/dev/null | grep -m 1 'inet6 [^fd]' | awk '{print $2}')
 	lla_address=$(echo "$lla_cidr" | cut -d "/" -f1)
