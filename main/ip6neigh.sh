@@ -21,7 +21,7 @@
 . /lib/functions/network.sh
 
 #Program definitions
-readonly CMD_TOOL_VERSION='1.6.0'
+readonly CMD_TOOL_VERSION='1.6.1'
 readonly HOSTS_FILE='/tmp/hosts/ip6neigh'
 readonly CACHE_FILE='/tmp/ip6neigh.cache'
 readonly SERVICE_NAME='ip6neigh-svc.sh'
@@ -409,9 +409,6 @@ oui_download() {
 
 #Searches for the OUI of the MAC in a manufacturer list.
 oui_name() {
-	#Fails if OUI file does not exist.
-	[ -f "$OUI_FILE" ] || return 1
-	
 	#Get MAC and separates OUI part.
 	local mac=$(echo "$2" | tr -d ':')
 	local oui="${mac:0:6}"
@@ -433,6 +430,9 @@ oui_name() {
 		eval "$1='Locally administered'"
 		return 0
 	fi
+	
+	#Fails here if OUI file does not exist.
+	[ -f "$OUI_FILE" ] || return 1
 
 	#Searches for the OUI in the database.
 	local reg=$(gunzip -c "$OUI_FILE" | grep -i -m 1 "^$oui")

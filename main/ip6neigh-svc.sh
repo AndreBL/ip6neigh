@@ -17,7 +17,7 @@
 #	by André Lange		Dec 2016
 
 #Program definitions
-readonly SVC_VERSION='1.6.0'
+readonly SVC_VERSION='1.6.1'
 readonly CONFIG_FILE='/etc/config/ip6neigh'
 readonly HOSTS_FILE='/tmp/hosts/ip6neigh'
 readonly CACHE_FILE='/tmp/ip6neigh.cache'
@@ -407,9 +407,6 @@ is_dhcpv6_addr() {
 
 #Searches for the OUI of the MAC in a manufacturer list.
 oui_name() {
-	#Fails if OUI file does not exist.
-	[ -f "$OUI_FILE" ] || return 1
-	
 	#Get MAC and separates OUI part.
 	local mac="$1"
 	local oui="${mac:0:6}"
@@ -420,6 +417,9 @@ oui_name() {
 		echo 'LocalAdmin'
 		return 0
 	fi
+	
+	#Fails here if OUI file does not exist.
+	[ -f "$OUI_FILE" ] || return 1
 
 	#Searches for the OUI in the database.
 	local reg=$(gunzip -c "$OUI_FILE" | grep -m 1 "^$oui")
