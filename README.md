@@ -37,7 +37,7 @@ When using ip6neigh, names are applied, rather than cryptic IPv6 addresses, such
 	# opkg install curl ip-full
 	```
 
-	Special procedure for LEDE systems: If installing on LEDE v17.01.0, the ip-full package needs to be upgraded to a newer build that has the 'ip monitor' bug already fixed. Please navigate to https://downloads.lede-project.org/snapshots/packages/ , find your platform directory, download `ip-full_4.4.0-9_platform.ipk` (or latest version) and install it on the router. Example for the x86_64 platform:
+	**NOTE:** Special procedure for LEDE systems: When using LEDE v17.01.0, the `ip-full` package needs to be upgraded to a newer build that which has fixed the 'ip monitor' bug. Please navigate to [https://downloads.lede-project.org/snapshots/packages/](https://downloads.lede-project.org/snapshots/packages/) , find your platform directory, download `ip-full_4.4.0-9_platform.ipk` (or latest version) and install it on the router. Example for the x86_64 platform:
 	
 	```
 	# cd /tmp
@@ -47,8 +47,9 @@ When using ip6neigh, names are applied, rather than cryptic IPv6 addresses, such
 	# rm ip-full_4.4.0-9_x86_64.ipk
 	```
 
-	Hint: When copying the download URL from your browser, change `https` to `http` like the example above to allow downloading without having to install certificates.
-	LEDE trunk builds do not need this extra procedure since r3778-312b9dc. OpenWrt releases are fine with the stable version of ip-full.
+	**Hint:** When copying the download URL from your browser, change `https` to `http` like the example above to allow downloading without having to install certificates.
+	
+	LEDE trunk builds do not need this extra procedure since r3778-312b9dc. OpenWrt releases do *not* require upgrading `ip-full` package.
 	
 2. Download the installer script script to /tmp on your router by running the following command:
 	
@@ -91,7 +92,7 @@ When using ip6neigh, names are applied, rather than cryptic IPv6 addresses, such
    
 4. (Optional) Edit your current dhcp config file /etc/config/dhcp for adding predefined SLAAC hosts. 
 
-   Examples provided at: [dhcp](https://github.com/AndreBL/ip6neigh/blob/master/etc/config/dhcp)
+   Examples of predefined hosts at: [dhcp](https://github.com/AndreBL/ip6neigh/blob/master/etc/config/dhcp)
 
 5. Start ip6neigh...
 
@@ -463,10 +464,12 @@ Laptop.TMP.lan                 fd32:197d:3022:1101:4c62:38c9:247d:5b1f
 ## Dependencies
 
 One only needs to install `ip-full` and `curl` packages. It has been tested on the following router operating systems:
+
 * OpenWrt Chaos Calmer v15.05.1
 * OpenWrt Chaos Calmer v15.05
-* LEDE Snapshot r3778-312b9dc
 * LEDE v17.01.0 (requires upgrading ip-full package to v4.4.0-9 or later, from the snapshot build)
+* LEDE Snapshot r3778-312b9dc 
+
 
 Additional dependency for 'snooping' mode is `tcpdump`.
 
