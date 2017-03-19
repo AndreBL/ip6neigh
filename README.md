@@ -315,14 +315,14 @@ Command list:
         { enable | disable }
         list            [ all | static | discovered | active | host HOSTNAME ]
         name            { ADDRESS }
-		address         { FQDN } [ 1 ]
-		mac             { HOSTNAME | ADDRESS }
-		oui             { MAC | download }
+        address         { FQDN } [ 1 ]
+        mac             { HOSTNAME | ADDRESS }
+        oui             { MAC | download }
         resolve         { FQDN | ADDRESS }
         whois           { HOSTNAME | ADDRESS | MAC }
-		logread         [ REGEX ]
+        logread         [ REGEX ]
 
-		--version       Print version information and exit.
+        --version       Print version information and exit.
 
 Typing shortcuts: rst lst sta dis act hst addr downl res who whos log
 ```
@@ -430,6 +430,7 @@ Laptop.TMP.lan                 fd32:197d:3022:1101:4c62:38c9:247d:5b1f
 ## Dependencies
 
 One only needs to install `ip` and `curl` packages. It has been tested on Chaos Calmer (v15.05.1 and v15.05) of OpenWrt.
+
 Note about LEDE support: The author intends to confirm support for this script on LEDE as well. However, the current version of the ip-full package in LEDE has an issue that prevents its operation. Ticket: https://bugs.lede-project.org/index.php?do=details&task_id=620
 
 Additional dependency for 'snooping' mode is `tcpdump`.
