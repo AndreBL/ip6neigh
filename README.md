@@ -231,7 +231,7 @@ To accomplish this:
 1. Set up the DDNS config at the router to obtain the Host IPv6 address via an external script. Set this script to be the ip6neigh command that will echo the intended host's GUA:
 
 	```
-	/usr/bin/ip6neigh address MyServer.GUA.lan
+	/usr/bin/ip6neigh addr MyServer.GUA.lan 1
 	```
 
 Regardless of prefix changes, `ip6neigh` will keep the IPv6 address up to date by name, and return the correct IPv6 address at time of DDNS update.
