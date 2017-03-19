@@ -157,20 +157,21 @@ It is possible to see the host file via the LuCI web interface by using luci-app
 
 	```
 	# ip6neigh list active
-	Speed-9BA.PUB.lan              2001:470:ebbd:4:213:3bff:fe99:19ba
-	Speed-9BA.UNROUTED.lan         fdf2:a18:c0f0:0:213:3bff:fe99:19ba
-	alarm.LL.lan                   fe80::bca2:6aff:fe36:2caa
-	alarm.PUB.lan                  2001:470:ebbd:4:bca2:6aff:fe36:2caa
-	alarm.TMP.PUB.lan              2001:470:ebbd:4::ac6
-	alarm.TMP.PUB.lan              2001:470:ebbd:4:bce2:23c4:8aa5:89a4
-	alarm.TMP.lan                  fdf2:a18:c0f0::ac6
-	alarm.UNROUTED.lan             fdf2:a18:c0f0:0:bca2:6aff:fe36:2caa
-	alarm.UNROUTED.lan             fdf2:a18:c0f0:0:bce2:23c4:8aa5:89a4
-	hau.LL.lan                     fe80::d69a:20ff:fe01:e0a4
-	hau.PUB.lan                    2001:470:ebbd:4:d69a:20ff:fe01:e0a4
-	hau.TMP.PUB.lan                2001:470:ebbd:4::46f
-	hau.TMP.PUB.lan                2001:470:ebbd:4:d974:2aea:45fd:fabd
-	hau.UNROUTED.lan               fdf2:a18:c0f0:0:d69a:20ff:fe01:e0a4
+	Chromecast                     fd32:197d:3022:1101:a677:33ff:fe52:45d2
+	Chromecast.GUA.lan             2804:7f5:f080:29a2:a677:33ff:fe52:45d2
+	Chromecast.LL.lan              fe80::a677:33ff:fe52:45d2
+	Chromecast.TMP.GUA.lan         2804:7f5:f080:29a2:1dc9:ae37:c1fb:6bec
+	Chromecast.TMP.lan             fd32:197d:3022:1101:1dc9:ae37:c1fb:6bec
+	Android-Andre                  fd32:197d:3022:1101:f6f5:24ff:fe9e:5ac7
+	Android-Andre.GUA.lan          2804:7f5:f080:29a2:f6f5:24ff:fe9e:5ac7
+	Android-Andre.LL.lan           fe80::f6f5:24ff:fe9e:5ac7
+	Android-Andre.TMP.GUA.lan      2804:7f5:f080:29a2:7094:bdf0:4911:6bf9
+	Android-Andre.TMP.lan          fd32:197d:3022:1101:7094:bdf0:4911:6bf9
+	Laptop                         fd32:197d:3022:1101:c4d7:e94:282d:60b1
+	Laptop.GUA.lan                 2804:7f5:f080:29a2:c4d7:e94:282d:60b1
+	Laptop.LL.lan                  fe80::c4d7:e94:282d:60b1
+	Laptop.TMP.GUA.lan             2804:7f5:f080:29a2:a840:ce89:7c91:93bd
+	Laptop.TMP.lan                 fd32:197d:3022:1101:4c62:38c9:247d:5b1f
 
 	```
 
@@ -179,7 +180,7 @@ It is possible to see the host file via the LuCI web interface by using luci-app
 
 * Computer.**TMP**.lan (a temporary address)
 * Computer.**LL**.lan (a link-local address)
-* Computer.**TMP.PUB**.lan (a temporary GUA)
+* Computer.**TMP.GUA**.lan (a temporary GUA)
 * Computer (no DNS label applied, e.g. a non-temporary ULA)
 
 DNS Labels used by `ip6neigh` can be configured in `/etc/config/ip6neigh` file.
@@ -230,7 +231,7 @@ To accomplish this:
 1. Set up the DDNS config at the router to obtain the Host IPv6 address via an external script. Set this script to be the ip6neigh command that will echo the intended host's GUA:
 
 	```
-/usr/bin/ip6neigh address MyServer.PUB.lan
+/usr/bin/ip6neigh address MyServer.GUA.lan
 	```
 
 Regardless of prefix changes, `ip6neigh` will keep the IPv6 address up to date by name, and return the correct IPv6 address at time of DDNS update.
@@ -272,7 +273,7 @@ To setup Dynamic Firewall access rules:
     echo "ip6tables -F wan6_forwarding" > $TMP_SCRIPT
 
     #Create new rules for dynamic IPv6 addresses here. Example for accepting TCP connections on port 80 on a local server that identifies itself as 'Webserver' through DHCP.
-    echo "ip6tables -A wan6_forwarding -d $(ip6neigh addr Webserver.PUB 1) -p tcp --dport 80 -j ACCEPT" >> $TMP_SCRIPT
+    echo "ip6tables -A wan6_forwarding -d $(ip6neigh addr Webserver.GUA 1) -p tcp --dport 80 -j ACCEPT" >> $TMP_SCRIPT
 
     #Run the generated temp firewall script
     /bin/sh "$TMP_SCRIPT"
@@ -294,7 +295,7 @@ To setup Dynamic Firewall access rules:
     root@OpenWrt:~# ip6tables -L wan6_forwarding
     Chain wan6_forwarding (1 references)
     target     prot opt source               destination
-    ACCEPT     tcp      anywhere             Webserver.PUB.lan     tcp dpt:www
+    ACCEPT     tcp      anywhere             Webserver.GUA.lan     tcp dpt:www
     ```
 
 ## Tools
@@ -337,7 +338,7 @@ With no extra argument: Shows all entries in the hosts file, with comments and b
 *  `name { ADDRESS }`
 Displays the FQDN (Fully Qualified Domain Name) for the IPv6 address. Depending on the user configuration in `/etc/config/ip6neigh`, the top level domain will not appear if the host has no DNS label.  
 * `address { NAME } [ 1 ]`
-Returns the IPv6 addresses for the FQDN. The top level domain name (e.g. 'lan') may be optionally omitted for convenience. Input examples: Laptop, Laptop.PUB, Laptop.PUB.lan, Laptop.TMP 
+Returns the IPv6 addresses for the FQDN. The top level domain name (e.g. 'lan') may be optionally omitted for convenience. Input examples: Laptop, Laptop.GUA, Laptop.GUA.lan, Laptop.TMP 
 	* This command has a clean output for external scripting, like supplying the address to DDNS Scripts or to a custom firewall script that generates rules for GUAs based on names because ISP is issuing a dynamic prefix.
 It is possible that hosts will have multiple temp addresses and they will have the same FQDN. If the extra argument '1' is supplied, limits the output to the first address associated with that FQDN.
 This command replaces `ip6neigh_ddns.sh`
@@ -347,7 +348,7 @@ Shows the MAC address for the host device or address. Clean output.
 Displays the manufacturer name for the supplied MAC address. If the argument is 'download', the local offline OUI database will be installed or updated.
 * `resolve { FQDN | ADDRESS }`
 Verbose style output for resolving FQDN to IPv6 addresses or IPv6 address to FQDN. The top level domain name (e.g. 'lan') may be optionally omitted cor convenience.
-Input examples for FQDN: Laptop, Laptop.PUB, Laptop.PUB.lan, Laptop.TMP ...
+Input examples for FQDN: Laptop, Laptop.GUA, Laptop.GUA.lan, Laptop.TMP ...
 * `whois { HOSTNAME | ADDRESS | MAC }`
 Displays host name information, related FQDN, MAC address and manufacturer info for the specified host, address or MAC.
 * `logread [ REGEX ]`
@@ -414,24 +415,22 @@ To list the hostnames detected by **ip6neigh**.
 ```
 # ip6neigh list 
 #Predefined hosts
-Router                         2001:db8:ebbd:4::1 
-Router.LL.lan                  fe80::224:a5ff:fed7:3088 
+Router                         fd32:197d:3022:1101::1
+Router.GUA.lan                 2804:7f5:f080:29a2::1
+Router.LL.lan                  fe80::c66e:1fff:fed6:18c4
 
 #Discovered hosts
-Speed-9BA                      2001:db8:ebbd:4:213:3bff:fe99:19ba 
-Speed-9BA.LL.lan               fe80::213:3bff:fe99:19ba 
-Speed-9BA.TMP.lan              2001:db8:ebbd:4:b5e3:1def:443b:f7b9 
-alarm                          2001:db8:ebbd:4:5048:e4ff:fe4d:a27d 
-alarm.LL.lan                   fe80::5048:e4ff:fe4d:a27d 
-alarm.TMP.lan                  2001:db8:ebbd:4:614b:2c7:27af:6713 
-hau                            2001:db8:ebbd:4:d69a:20ff:fe01:e0a4 
-hau.LL.lan                     fe80::d69a:20ff:fe01:e0a4 
-hau.TMP.lan                    2001:db8:ebbd:4::46f 
+Laptop                         fd32:197d:3022:1101:c4d7:e94:282d:60b1
+Laptop.GUA.lan                 2804:7f5:f080:29a2:c4d7:e94:282d:60b1
+Laptop.LL.lan                  fe80::c4d7:e94:282d:60b1
+Laptop.TMP.GUA.lan             2804:7f5:f080:29a2:a840:ce89:7c91:93bd
+Laptop.TMP.lan                 fd32:197d:3022:1101:4c62:38c9:247d:5b1f
 ```
 
 ## Dependencies
 
-One only needs to install `ip` and `curl` packages. It has been tested on Chaos Calmer (v15.05.1 and v15.05) of OpenWrt. 
+One only needs to install `ip` and `curl` packages. It has been tested on Chaos Calmer (v15.05.1 and v15.05) of OpenWrt.
+Note about LEDE support: The author intends to confirm support for this script on LEDE as well. However, the current version of the ip-full package in LEDE has an issue that prevents its operation. Ticket: https://bugs.lede-project.org/index.php?do=details&task_id=620
 
 Additional dependency for 'snooping' mode is `tcpdump`.
 
