@@ -184,9 +184,9 @@ install() {
 	
 	#Check operating system
 	local OS
-	grep -q 'LEDE' /etc/os-release 2>/dev/null && OS='LEDE'
 	[ -f '/etc/openwrt_release' ] && OS='OpenWrt'
-	
+	grep -q 'LEDE' /etc/os-release 2>/dev/null && OS='LEDE'
+
 	case "$OS" in
 		'OpenWrt')
 			#Check ip-full package
