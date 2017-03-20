@@ -1,6 +1,6 @@
 #!/bin/sh
 
-#ip6neigh hotplug script version 1.6.0
+#ip6neigh hotplug script version 1.7.0
 
 readonly SERVICE_NAME="ip6neigh-svc.sh"
 

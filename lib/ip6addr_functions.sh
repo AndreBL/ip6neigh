@@ -16,7 +16,7 @@
 #	by André Lange		Fev 2017
 
 #Program definitions
-IP6ADDR_LIB_VERSION='1.6.0'
+IP6ADDR_LIB_VERSION='1.7.0'
 
 #Print version info and return if requested
 if [ "$1" = '--version' ]; then

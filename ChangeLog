@@ -1,0 +1,7 @@
+All changes by André Lange - andredbl at hotmail dot com
+
+
+Released 19 March 2017 v1.7.0
+	Operating System support
+		Tested on OpenWrt Chaos Calmer v15.05.1 and v15.05
+		Tested on x86_64 image of LEDE v17.01.0 and Snapshot r3778-312b9dc
