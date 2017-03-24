@@ -7,19 +7,20 @@
 # remove them just because they are not shown in the examples.
 #
 # New options for host sections:
-# slaac		0=disabled, 1=enabled with EUI-64 IID, other value means
+# slaac		0=disabled, 1=enabled with standard EUI-64 IID. Other value means
 #			"use this custom IID". See the example configs below.
-# lla_iid	Override slaac IID for link-local address
-# ula_iid	Override slaac IID for ULA address
-# wula_iid	Override slaac IID for WULA address
-# gua_iid	Override slaac IID for GUA address
+# lla_iid	Override 'slaac' IID for link-local address
+# ula_iid	Override 'slaac' IID for ULA address
+# wula_iid	Override 'slaac' IID for WULA address
+# gua_iid	Override 'slaac' IID for GUA address
 # perm		Adds the host to the neighbors table with NUD state permanent.
 #			Will also apply to the host's DHCP IPv4 address.
 #			0=disabled, 1=enabled for predefined addresses, 2=enabled for
 #			predefined and any discovered addresses associated with this MAC.
 	
 
-# Devices that use EUI-64 interface identifiers (IIDs) for all scopes:
+# Example 1: Devices that use standard EUI-64 interface identifiers (IIDs)
+# for all scopes:
 config host
 	option name		'Android-John'
 	#Copy the MAC address of the device.
@@ -27,7 +28,7 @@ config host
 	option slaac	'1'
 
 
-# Windows machines or other hosts that do not use EUI-64 IIDs but
+# Example 2: Windows machines or other hosts that do not use EUI-64 IIDs, but
 # use other static IIDs instead:
 config host
 	option name		'Laptop-Paul'
@@ -37,9 +38,9 @@ config host
 	#of the device.
 	option slaac	'daa1:4554:747b:1f50'
 
-# Creates IPv6 broadcast-like addresses for routing Wake-on-LAN packets from
-# the internet to the LAN network over IPv6. Needs proper firewall rules to
-# secure against possible attacks. Use with caution.
+# Example 3: Creates IPv6 broadcast-like addresses for routing Wake-on-LAN
+# packets from the internet to the LAN network over IPv6. Needs proper firewall
+# rules to secure against possible attacks. Use with caution.
 config host
 	option name		'WoL'
 	#Layer 2 broadcast address. Leave it as it is.
@@ -54,9 +55,9 @@ config host
 #ip6tables -A wol_forwarding -j DROP
 #ip6tables -A forwarding_wan_rule -o br-lan -d 2000::feed:feed:feed:feed/e000::ffff:ffff:ffff:ffff -j wol_forwarding
 
-# Workaround solution for crappy Android 5 (Lollipop) devices that are known to
-# have a bug in their NDP protocol that slows down the web browser response in
-# dual-stack WiFi networks. This is experimental.
+# Example 4: Workaround solution for crappy Android 5 (Lollipop) devices that
+# are known to have a bug in their NDP protocol that slows down the web browser
+# response in dual-stack WiFi networks. This is experimental.
 config host
 	option name		'Lollipop'
 	#Copy the MAC address of the device.
