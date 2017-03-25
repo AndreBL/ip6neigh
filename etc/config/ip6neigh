@@ -32,7 +32,7 @@ config ip6neigh 'config'
 	#option dad_snoop	'1'
 
 	# When a new address is discovered, auto probe for other addresses based
-	# on the neighbor's MAC address.
+	# on the host's MAC address.
 	# 0=disabled, 1=all scopes, 2=same scope. Default: '1'
 	#option probe_eui64	'0'
 
@@ -50,16 +50,18 @@ config ip6neigh 'config'
 	# Default: 'LL'
 	#option lla_label	'0'
 
-	# Label for LAN unique local addresses (ULA). Writing '0' clears the label.
+	# Label for LAN Unique Local Addresses (ULA). Writing '0' clears the label.
 	# Default is no label for ULAs.
 	#option ula_label	'ULA'
 	
-	# Label for unique local addresses (ULA) inherited from the WAN network.
-	# Writing '0' clears the label. Defaults to 'ULA' if the network has ULA
-	# prefix and no label if the network does not have ULA prefix.
+	# Label for Unique Local Addresses (ULA) inherited from the WAN network.
+	# Writing '0' clears the label. Defaults to 'ULA' if the network has ULA prefix
+	# and no label if the network does not have ULA prefix. This is useful if you
+	# have cascaded routers with this router taking a delegated or relayed ULA
+	# prefix from the upstream router.
 	#option wula_label	'0'
 
-	# Label for globally unique addresses (GUA). Writing '0' clears the label.
+	# Label for Globally Unique Addresses (GUA). Writing '0' clears the label.
 	# Defaults to 'GUA' if the network has ULA or WULA prefix and no label if the
 	# network does not have neither ULA nor WULA prefix.
 	#option gua_label	'0'
@@ -68,18 +70,20 @@ config ip6neigh 'config'
 	# either the link-local prefix or the ULA/WULA/GUA prefix of the router's LAN
 	# interface. Writing '0' clears the label. If the label is cleared, any address
 	# starting with 'fd' will be considered as ULA and any other global address will
-	# be considered as GUA (WULA distinction will also be disabled).
+	# be considered as GUA (WULA distinction will also be disabled as a side effect).
 	# Default: 'UNROUTED'
 	#option unrouted_label	'UNROUTED'
 
-	# Secondary label for temporary (RFC 4941) address. Will also be applied
-	# to addresses with Semantically Opaque Interface Identifiers (RFC 7217).
+	# Secondary label for temporary, aka privacy (RFC 4941) addresses. Will also be
+	# applied to addresses with Stable Semantically Opaque IIDs (RFC 7217), as
+	# currently there is no way to automatically distinguish them from RFC 4941.
 	# Writing '0' clears the label.
 	# Default: 'TMP'
 	#option tmp_label	'0'
 	
-	# Secondary label for managed address. Will be applied to any addresses with IID
-	# that match '0:0:0:*'. Writing '0' clears the label.
+	# Secondary label for managed addresses. Will be applied to any addresses with
+	# IID that have their first 32 bits matching a router's address on the LAN iface.
+	# Writing '0' clears the label.
 	# Default: 'MAN'
 	#option man_label	'0'
 
@@ -92,7 +96,7 @@ config ip6neigh 'config'
 	#option dhcpv4_names	'0'
 	
 	# Generate names based on the manufacturer of the device if DHCPv6/v4 names
-	# were not available. 0=disabled, 1=enabled.
+	# are not available. 0=disabled, 1=enabled.
 	# Default: '1'
 	#option manuf_names	'0'
 
@@ -115,7 +119,7 @@ config ip6neigh 'config'
 	#list fw_script		'/root/file_server.sh'
 	#list fw_script		'/root/other_server.sh'
 
-	# Enable logging of debug messages. Options are '0' for disabled,
-	# '1' to use syslog or 'file name' if you want to log to a file instead.
+	# Enable logging of debug messages. Options are '0' for disabled, '1' to use
+	# syslog or 'file name' if you want to log to a file instead.
 	# Default: '0'
 	option log		'/tmp/log/ip6neigh.log'
