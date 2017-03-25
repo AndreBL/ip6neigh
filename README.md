@@ -211,7 +211,8 @@ ip6neigh will discover new hosts on the LAN and assign them names. But you may w
 Predefined hosts are added to the `/etc/config/dhcp` file using the following:
 
 ```
-# Devices that use EUI-64 interface identifiers (IIDs) for all scopes:
+# Example 1: Devices that use standard EUI-64 interface identifiers (IIDs)
+# for all scopes:
 config host
 	option name		'Android-John'
 	#Copy the MAC address of the device.
@@ -222,7 +223,7 @@ config host
 For Windows machines which do not use RFC 4862 EUI-64 SLAAC addressing (based on the MAC address):
 
 ```
-# Windows machines or other hosts that do not use EUI-64 IIDs but
+# Example 2: Windows machines or other hosts that do not use EUI-64 IIDs, but
 # use other static IIDs instead:
 config host
 	option name		'Laptop-Paul'
@@ -233,12 +234,12 @@ config host
 	option slaac	'daa1:4554:747b:1f50'
 
 ```
-Cryptographically Opaque (RFC  7217) can not be currently defined as predefined hosts (MacOS X 10.12, and iOS 10) as the host portion of the address (the IID) changes when the prefix changes.
+Addresses with Stable (not Constant) Semantically Opaque IIDs (RFC 7217) cannot be currently added as predefined hosts (MacOS X 10.12, and iOS 10) if the prefix from the ISP is dynamic, as the host portion of the address (the IID) also changes when the prefix changes.
 
 ### Configuration: Dynamic DNS (DDNS)
-Dynamic DNS utilizes the `ddns-scripts` package. In the usual case, ddns-scripts is used to update the router's address into the AAAA record of an external DDNS service. `ip6neigh` allows one to update the DDNS with an arbitrary internal host's address instead of the router's own address.
+Dynamic DNS utilizes the `ddns-scripts` package. In the usual case for IPv6, ddns-scripts is used to update the router's address into the AAAA record of an external DDNS service. `ip6neigh` allows one to update the DDNS with an arbitrary internal host's address instead of the router's own address.
 
-Providing there is a firewall rule to allow access to the internal host, then running an externally accessible IPv6 server (i.e. web, ftp, RDP) is possible even when the **delegated prefix** if frequently changed by the ISP.
+Providing there is a firewall rule to allow access to the internal host, then running an externally accessible IPv6 server (i.e. web, ftp, RDP) is feasible even when the **delegated prefix** if frequently changed by the ISP.
 
 To accomplish this:
 
@@ -248,7 +249,7 @@ To accomplish this:
 	/usr/bin/ip6neigh addr MyServer.GUA.lan 1
 	```
 
-Regardless of prefix changes, `ip6neigh` will keep the IPv6 address up to date by name, and return the correct IPv6 address at time of DDNS update.
+Regardless of prefix changes, `ip6neigh` will keep the IPv6 address up to date by name, and return the correct IPv6 address at the time of DDNS update.
 
 
 ### Configuration: Dynamic Firewall Rules
@@ -314,7 +315,7 @@ To setup Dynamic Firewall access rules:
 
 ## Tools
 
-Included is a versatile tool called `ip6negh` which controls most of the functions, starting, stopping, as well as an aid in troubleshooting.
+Included is a versatile tool called `ip6neigh` which controls most of the functions, starting, stopping, as well as an aid in troubleshooting.
 
 ### Help
 
@@ -459,7 +460,7 @@ In order to use the LuCI web interface, one must install `luci-app-commands`
 
 ip6neigh is designed to operate in a dual-stack network with both IPv4 and IPv6 running. It will collect host names and return them when queried by DNS.
 
-ip6neigh relies on DHCPv4 client to report its hostname (option 12) or DHCPv6 client option 39. If the client does not report the hostname, then an "Unknown-XXX" name will be applied with *XXX* as the last three hex digits of the MAC address. If the offline MAC OUI lookup has been activated (by running the command ip6neigh oui download), then the MAC OUI manufacturer name will be used instead of Unknown.
+ip6neigh relies on DHCPv4 client to report its hostname (option 12) or DHCPv6 client option 39. If the client does not report the hostname, then an "Unknown-XXX" name will be applied with *XXX* as the last three hex digits of the MAC address. If the offline MAC OUI lookup has been activated (by running the command `ip6neigh oui download`), then the MAC OUI manufacturer name will be used instead of Unknown.
 
 SLAAC addresses are discovered by three methods:
 
