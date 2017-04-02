@@ -17,7 +17,7 @@
 #	by André Lange		Dec 2016
 
 #Program definitions
-readonly SVC_VERSION='1.7.0'
+readonly SVC_VERSION='1.7.1'
 readonly CONFIG_FILE='/etc/config/ip6neigh'
 readonly HOSTS_FILE='/tmp/hosts/ip6neigh'
 readonly CACHE_FILE='/tmp/ip6neigh.cache'
@@ -1089,8 +1089,14 @@ snooping_service() {
 	local line
 	local addr
 	
-	#Infinite loop. Keeps listening to DAD NS packets and pings the captured addresses.
+	#If the LAN iface is bridged, disable IGMP snooping on the bridge.
+	local mcsnoop="/sys/class/net/${LAN_DEV}/bridge/multicast_snooping"
+	[ -f "$mcsnoop" ] && echo 0 > "$mcsnoop"
+	
+	#Enables the 'allmulticast' flag on the interface
 	ip link set "$LAN_DEV" allmulticast on
+	
+	#Infinite loop. Keeps listening to DAD NS packets and pings the captured addresses.
 	tcpdump -q -l -n -p -i "$LAN_DEV" 'src :: && icmp6 && ip6[40] == 135' 2>/dev/null |
 		while IFS= read -r line
 		do

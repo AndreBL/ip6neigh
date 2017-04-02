@@ -27,7 +27,8 @@ config ip6neigh 'config'
 	# tcpdump. If enabled, ip6neigh will instantly detect when a new host joins the
 	# network and will be able to see all the IPv6 addresses took by that host.
 	# Using this feature is highly recommended if you have more than 32 MB of RAM
-	# and enough flash space to install tcpdump.
+	# and enough flash space to install tcpdump. If the LAN interface is bridged,
+	# this will disable IGMP snooping on the bridge configuration.
 	# 0=disabled, 1=enabled. Default: '0'
 	#option dad_snoop	'1'
 
