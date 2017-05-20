@@ -38,19 +38,19 @@ When using ip6neigh, names are applied to local IPv6 hosts, rather than cryptic 
 	# opkg install curl ip-full
 	```
 
-	**NOTE:** Special procedure for LEDE systems: When using LEDE v17.01.0, the `ip-full` package needs to be upgraded to a newer build which has fixed the 'ip monitor' bug. Please navigate to [https://downloads.lede-project.org/snapshots/packages/](https://downloads.lede-project.org/snapshots/packages/) , find your platform directory, download `ip-full_4.4.0-9_platform.ipk` (or latest version) and install it on the router. Example for the x86_64 platform:
+	**NOTE:** Special procedure for LEDE systems: When using LEDE v17.01.**0**, the `ip-full` package needs to be upgraded to a newer build which has fixed the 'ip monitor' bug. Please navigate to [https://downloads.lede-project.org/snapshots/packages/](https://downloads.lede-project.org/snapshots/packages/) , find your platform directory, download `ip-full_4.4.0-X_platform.ipk` (where X corresponds to the latest version) and install it on the router. Example for the x86_64 platform:
 	
 	```
 	# cd /tmp
-	# wget http://downloads.lede-project.org/snapshots/packages/x86_64/base/ip-full_4.4.0-9_x86_64.ipk
+	# wget http://downloads.lede-project.org/snapshots/packages/x86_64/base/ip-full_4.4.0-10_x86_64.ipk
 	# opkg remove ip-full
-	# opkg install ip-full_4.4.0-9_x86_64.ipk
-	# rm ip-full_4.4.0-9_x86_64.ipk
+	# opkg install ip-full_4.4.0-10_x86_64.ipk
+	# rm ip-full_4.4.0-10_x86_64.ipk
 	```
 
 	**Hint:** When copying the download URL from your browser, change `https` to `http` like the example above to allow downloading without having to install CA certificates.
 	
-	OpenWrt releases and LEDE trunk builds since r3778-312b9dcdo *do not* require upgrading the `ip-full` package version (normal installation by `opkg install ip-full` is enough).
+	**OpenWrt** releases and LEDE since v17.01.**1** *do not require* upgrading the `ip-full` package version (normal installation by `opkg install ip-full` is enough).
 	
 2. Download the installer script script to /tmp on your router by running the following command:
 	
@@ -449,7 +449,7 @@ One only needs to install `ip-full` and `curl` packages. It has been tested on t
 * OpenWrt Chaos Calmer v15.05.1
 * OpenWrt Chaos Calmer v15.05
 * LEDE v17.01.0 (requires upgrading ip-full package to v4.4.0-9 or later, from the snapshot build)
-* LEDE Snapshot r3778-312b9dc 
+* LEDE v17.01.1
 
 
 Additional dependency for 'snooping' mode is `tcpdump`.
