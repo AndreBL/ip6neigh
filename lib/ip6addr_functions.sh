@@ -16,7 +16,7 @@
 #	by André Lange		Fev 2017
 
 #Program definitions
-IP6ADDR_LIB_VERSION='1.7.0'
+IP6ADDR_LIB_VERSION='1.7.1'
 
 #Print version info and return if requested
 if [ "$1" = '--version' ]; then
@@ -137,7 +137,7 @@ _right_scan() {
 }
 
 #Converts a compressed address representation to the expanded form
-#1: ip6addr
+#1: ip6addr, #2: force processing
 expand_addr() {
 	#Do nothing with empty argument
 	[ -n "$1" ] || return 0
@@ -147,9 +147,11 @@ expand_addr() {
 		*'::'*|*'.'*);;
 		#Does not contain '::'
 		*)
-			#Print unmodified
-			echo "$1"
-			return 0
+			if [ -z "$2" ]; then
+				#Print unmodified
+				echo "$1"
+				return 0
+			fi
 		;;
 	esac
 		
@@ -160,11 +162,15 @@ expand_addr() {
 	#Process from left to right and then from right to left
 	local addr="$1"
 	local q1 q2 q3 q4 q5 q6 q7 q8
+	local code=0
 	_left_scan "$addr"
-	_right_scan "$addr" "$?"
+	if [ -z "$q8" ]; then
+		_right_scan "$addr" "$?"
+		code="$?"
+	fi
 
 	#Check the return code
-	if [ "$?" = 0 ]; then
+	if [ "$code" = 0 ]; then
 		#Regular IPv6 address. Creates the final string by printing all quibbles as hex numbers.
 		printf '%x:%x:%x:%x:%x:%x:%x:%x\n' "0x0$q1" "0x0$q2" "0x0$q3" "0x0$q4" "0x0$q5" "0x0$q6" "0x0$q7" "0x0$q8"
 	else
@@ -354,5 +360,13 @@ gen_iid_match() {
 		echo "[^ ]*:$1"
 	fi
 	
+	return 0
+}
+
+#Reformats the address in compressed notation
+#1: ip6addr
+reformat_addr() {
+	local addr=$(expand_addr "$1" 1)
+	compress_addr "$addr"
 	return 0
 }

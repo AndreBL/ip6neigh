@@ -21,7 +21,7 @@
 . /lib/functions/network.sh
 
 #Program definitions
-readonly CMD_TOOL_VERSION='1.7.0'
+readonly CMD_TOOL_VERSION='1.7.1'
 readonly HOSTS_FILE='/tmp/hosts/ip6neigh'
 readonly CACHE_FILE='/tmp/ip6neigh.cache'
 readonly SERVICE_NAME='ip6neigh-svc.sh'
@@ -36,6 +36,9 @@ if [ "$1" = '--version' ]; then
 	[ -f "$SERVICE_SCRIPT" ] && "$SERVICE_SCRIPT" --version
 	return 0
 fi
+
+#More dependencies
+. /usr/lib/ip6neigh/ip6addr_functions.sh
 
 #Display help text
 display_help() {
@@ -255,8 +258,11 @@ show_name() {
 	check_running
 	check_files
 	
+	#Compress the address
+	local addr=$(reformat_addr "$1")
+
 	#Get name from the hosts file.
-	grep -m 1 -i "^$1 " "$HOSTS_FILE" | cut -d ' ' -f2
+	grep -m 1 -i "^$addr " "$HOSTS_FILE" | cut -d ' ' -f2
 }
 
 #Display the MAC address for a simple name, FQDN or IPv6 address.
@@ -269,8 +275,11 @@ show_mac() {
 	case "$1" in
 		*':'*)
 			#It's an address.
+			#Compress the address
+			local addr=$(reformat_addr "$1")
+
 			name=$(
-				grep -m 1 -i "^$1 " "$HOSTS_FILE" |
+				grep -m 1 -i "^$addr " "$HOSTS_FILE" |
 				cut -d ' ' -f2 |
 				cut -d '.' -f1
 			)
@@ -297,7 +306,10 @@ resolve_cmd() {
 	case "$1" in
 		*':'*)
 			#It's an address.
-			grep -m 1 -i "^$1 " "$HOSTS_FILE" |
+			#Compress the address
+			local addr=$(reformat_addr "$1")
+
+			grep -m 1 -i "^$addr " "$HOSTS_FILE" |
 				awk '{printf "%s is named %s\n",$1,$2}'
 		;;
 		*)
@@ -333,8 +345,11 @@ whois_this() {
 		;;
 		#IPv6 address. Get name from the hosts file.
 		*':'*)
+			#Compress the address
+			local addr=$(reformat_addr "$1")
+
 			host=$(
-				grep -m 1 -i "^$1 " "$HOSTS_FILE" |
+				grep -m 1 -i "^$addr " "$HOSTS_FILE" |
 				cut -d ' ' -f2 |
 				cut -d '.' -f1
 			)
