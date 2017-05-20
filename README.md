@@ -448,8 +448,8 @@ One only needs to install `ip-full` and `curl` packages. It has been tested on t
 
 * OpenWrt Chaos Calmer v15.05.1
 * OpenWrt Chaos Calmer v15.05
-* LEDE v17.01.0 (requires upgrading ip-full package to v4.4.0-9 or later, from the snapshot build)
 * LEDE v17.01.1
+* LEDE v17.01.0 (requires upgrading ip-full package to v4.4.0-9 or later, from the snapshot build)
 
 
 Additional dependency for 'snooping' mode is `tcpdump`.
