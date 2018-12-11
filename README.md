@@ -38,7 +38,9 @@ When using ip6neigh, names are applied to local IPv6 hosts, rather than cryptic 
 	# opkg install curl ip-full
 	```
 
-	**NOTE:** Special procedure for LEDE systems: When using LEDE v17.01.**0**, the `ip-full` package needs to be upgraded to a newer build which has fixed the 'ip monitor' bug. Please navigate to [https://downloads.lede-project.org/snapshots/packages/](https://downloads.lede-project.org/snapshots/packages/) , find your platform directory, download `ip-full_4.4.0-X_platform.ipk` (where X corresponds to the latest version) and install it on the router. Example for the x86_64 platform:
+	**NOTE:** Special procedure for LEDE systems: When using LEDE v17.01.**0**, the `ip-full` package needs to be upgraded to a newer build which has fixed the 'ip monitor' bug. For 17.01.x systems, please navigate to [https://downloads.lede-project.org/snapshots/packages/](https://downloads.lede-project.org/snapshots/packages/) , find your platform directory, download `ip-full_4.4.0-X_platform.ipk` (where X corresponds to the latest version) and install it on the router. For OpenWrt 18.06.x install the package from 17.01.x by navigating to: [http://downloads.openwrt.org/releases/17.01.6/packages/[arch]/base/](http://downloads.openwrt.org/releases/17.01.6/packages).
+	
+Example for the x86_64 platform:
 	
 	```
 	# cd /tmp
