@@ -1,36 +1,52 @@
 #!/bin/sh
 
-#ip6neigh hotplug script version 1.7.0
+#ip6neigh hotplug script version 2.0.0
 
 readonly SERVICE_NAME="ip6neigh-svc.sh"
 
 pgrep -f "$SERVICE_NAME" >/dev/null || exit 0
 
-lan=$(uci get ip6neigh.config.lan_iface 2>/dev/null)
-if [ -z "$lan" ]; then lan="lan"; fi
+lans=$(uci get ip6neigh.config.lan_iface 2>/dev/null)
+if [ -z "$lans" ]; then lans="lan"; fi
 
 wan=$(uci get ip6neigh.config.wan_iface 2>/dev/null)
 if [ -z "$wan" ]; then wan="wan6"; fi
 
-[ "$INTERFACE" = "$lan" ] || [ "$INTERFACE" = "$wan" ] || exit 0
-
 . /lib/functions/network.sh
 
-case "$INTERFACE $ACTION" in
-	"$lan ifup"|"$wan ifup") /etc/init.d/ip6neigh restart ;;
-	"$wan ifdown")
-		lan_wipe=$(uci get ip6neigh.config.lan_wipe 2>/dev/null)
-		[ "$lan_wipe" = '1' ] || exit 0
+echo "Interface: $INTERFACE"
+echo "Action: $ACTION"
 
+if [ "$INTERFACE $ACTION" = "$wan ifdown" ] ; then
+	echo "Execution wan-down procedure"
+
+	lan_wipe=$(uci get ip6neigh.config.lan_wipe 2>/dev/null)
+	[ "$lan_wipe" = '1' ] || exit 0
+
+	for lan in $lans ; do
 		network_get_physdev LAN_DEV "$lan"
-		[ -n "$LAN_DEV" ] || exit 0
+		[ -n "$LAN_DEV" ] || continue
 
 		ip -6 neigh flush 2000::/3 dev "$LAN_DEV" nud perm
 		ip -6 neigh flush 2000::/3 dev "$LAN_DEV"
-		
+
 		list=$(ip -6 addr show dev "$LAN_DEV" scope global 2>/dev/null | grep inet6 | awk '{print $2}' | grep -v '^fd')
 		for cidr in $list; do
 			ip -6 addr del $cidr dev "$LAN_DEV"
 		done
-	;;
-esac
+	done
+	exit 0
+fi
+
+if [ "$ACTION" != "ifup" ] ; then
+	exit 0
+fi
+
+for lan in $lans ; do
+	if [ "$INTERFACE" = "$lan" ] ; then
+		echo "Restarting ip6neigh"
+		/etc/init.d/ip6neigh restart
+		exit 0
+	fi
+done
+

@@ -17,6 +17,8 @@
 #			Will also apply to the host's DHCP IPv4 address.
 #			0=disabled, 1=enabled for predefined addresses, 2=enabled for
 #			predefined and any discovered addresses associated with this MAC.
+# iface		Configure to which interface the host is connected.
+#			This will ensure that only the correct prefix will be used.
 	
 
 # Example 1: Devices that use standard EUI-64 interface identifiers (IIDs)
@@ -26,6 +28,7 @@ config host
 	#Copy the MAC address of the device.
 	option mac		'1a:41:8e:83:66:74'
 	option slaac	'1'
+	option iface	'lan'
 
 
 # Example 2: Windows machines or other hosts that do not use EUI-64 IIDs, but
@@ -37,6 +40,7 @@ config host
 	#Copy the interface identifier from the link-local address of
 	#of the device.
 	option slaac	'daa1:4554:747b:1f50'
+	option iface	'lan'
 
 # Example 3: Creates IPv6 broadcast-like addresses for routing Wake-on-LAN
 # packets from the internet to the LAN network over IPv6. Needs proper firewall
@@ -48,6 +52,7 @@ config host
 	#This may be changed to a custom interface identifier.
 	option slaac	'feed:feed:feed:feed'
 	option perm		'1'
+	option iface	'lan'
 #Firewall rules to be put in /etc/firewall.user for the above example, using UDP port 9 to
 #forward WoL packets from the internet to LAN interface br-lan:
 #ip6tables -N wol_forwarding
@@ -64,3 +69,4 @@ config host
 	option mac		'4a:b9:b0:09:10:8b'
 	option slaac	'1'
 	option perm		'2'
+	option iface	'lan'
