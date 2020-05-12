@@ -21,9 +21,7 @@
 . /lib/functions/network.sh
 
 #Program definitions
-readonly CMD_TOOL_VERSION='1.7.2'
-readonly HOSTS_FILE='/tmp/hosts/ip6neigh'
-readonly CACHE_FILE='/tmp/ip6neigh.cache'
+readonly CMD_TOOL_VERSION='2.0.0'
 readonly SERVICE_NAME='ip6neigh-svc.sh'
 readonly SBIN_DIR='/usr/sbin/'
 readonly SHARE_DIR='/usr/share/ip6neigh/'
@@ -110,12 +108,9 @@ disable_service() {
 load_config() {
 	reset_cb
 	config_load ip6neigh
-	config_get LAN_IFACE config lan_iface lan
+	config_get LAN_IFACES config lan_iface
 	config_get DOMAIN config domain
 	config_get LOG config log 0
-
-	#Gets the physical devices
-	network_get_physdev LAN_DEV "$LAN_IFACE"
 
 	#Gets DNS domain from /etc/config/dhcp if not defined in ip6neigh config. Defaults to 'lan'.
 	if [ -z "$DOMAIN" ]; then
@@ -126,7 +121,21 @@ load_config() {
 
 #Prints the hosts file in a user friendly format.
 list_hosts() {
+	load_config
 	check_running
+
+	for LAN_IFACE in $LAN_IFACES ; do
+		echo "#Interface $LAN_IFACE"
+		HOSTS_FILE="/tmp/hosts/ip6neigh.$LAN_IFACE"
+		CACHE_FILE="/tmp/ip6neigh.$LAN_IFACE.cache"
+
+		network_get_physdev LAN_DEV "$LAN_IFACE"
+		list_hosts_iface
+		echo -e
+	done
+}
+
+list_hosts_iface() {
 	check_files
 	
 	#Get the line number that divides the two sections of the hosts file
@@ -151,8 +160,6 @@ list_hosts() {
 		;;
 		#REACHABLE and STALE
 		act*)
-			load_config
-			
 			#Iterate through entries in the neighbors table and populates a temp file.
 			local addr
 			local reg
@@ -230,7 +237,19 @@ format_fqdn() {
 
 #Displays the addresses for the supplied name
 show_address() {
-	check_running
+        load_config
+        check_running
+
+        for LAN_IFACE in $LAN_IFACES ; do
+                HOSTS_FILE="/tmp/hosts/ip6neigh.$LAN_IFACE"
+                CACHE_FILE="/tmp/ip6neigh.$LAN_IFACE.cache"
+
+                network_get_physdev LAN_DEV "$LAN_IFACE"
+                show_address_iface "$1" "$2"
+        done
+}
+
+show_address_iface() {
 	check_files
 	
 	#Check FQDN
@@ -255,7 +274,19 @@ show_address() {
 
 #Displays the name for the IPv6 or MAC address
 show_name() {
-	check_running
+        load_config
+        check_running
+
+        for LAN_IFACE in $LAN_IFACES ; do
+                HOSTS_FILE="/tmp/hosts/ip6neigh.$LAN_IFACE"
+                CACHE_FILE="/tmp/ip6neigh.$LAN_IFACE.cache"
+
+                network_get_physdev LAN_DEV "$LAN_IFACE"
+                show_name_iface "$1"
+        done
+}
+
+show_name_iface() {
 	check_files
 	
 	#Compress the address
@@ -267,7 +298,19 @@ show_name() {
 
 #Display the MAC address for a simple name, FQDN or IPv6 address.
 show_mac() {
-	check_running
+        load_config
+        check_running
+
+        for LAN_IFACE in $LAN_IFACES ; do
+                HOSTS_FILE="/tmp/hosts/ip6neigh.$LAN_IFACE"
+                CACHE_FILE="/tmp/ip6neigh.$LAN_IFACE.cache"
+
+                network_get_physdev LAN_DEV "$LAN_IFACE"
+                show_mac_iface "$1"
+        done
+}
+
+show_mac_iface() {
 	check_files
 	local name
 	
@@ -299,7 +342,19 @@ show_mac() {
 
 #Resolves name to address or address to name.
 resolve_cmd() {
-	check_running
+        load_config
+        check_running
+
+        for LAN_IFACE in $LAN_IFACES ; do
+                HOSTS_FILE="/tmp/hosts/ip6neigh.$LAN_IFACE"
+                CACHE_FILE="/tmp/ip6neigh.$LAN_IFACE.cache"
+
+                network_get_physdev LAN_DEV "$LAN_IFACE"
+                resolve_cmd_iface "$1" "$2"
+        done
+}
+
+resolve_cmd_iface() {
 	check_files
 	
 	#Check if it's address or name.
@@ -325,7 +380,19 @@ resolve_cmd() {
 
 #Displays the simple name (no FQDN) for the address or all addresses for the simple name.
 whois_this() {
-	check_running
+        load_config
+        check_running
+
+        for LAN_IFACE in $LAN_IFACES ; do
+                HOSTS_FILE="/tmp/hosts/ip6neigh.$LAN_IFACE"
+                CACHE_FILE="/tmp/ip6neigh.$LAN_IFACE.cache"
+
+                network_get_physdev LAN_DEV "$LAN_IFACE"
+                whois_this_iface "$1"
+        done
+}
+
+whois_this_iface() {
 	check_files
 	
 	local host

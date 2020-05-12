@@ -17,39 +17,81 @@
 #	by André Lange		Dec 2016
 
 #Program definitions
-readonly SVC_VERSION='1.7.1'
+readonly SVC_VERSION='2.0.0'
 readonly CONFIG_FILE='/etc/config/ip6neigh'
-readonly HOSTS_FILE='/tmp/hosts/ip6neigh'
-readonly CACHE_FILE='/tmp/ip6neigh.cache'
 readonly OUI_FILE='/usr/share/ip6neigh/oui.gz'
-readonly TEMP_FILE='/tmp/ip6neigh.tmp'
+
+LEASE_FILE=`uci get dhcp.@dnsmasq[0].leasefile`
+LAN_IFACE=''
+VERSION=0
+SNOOP=0
+ECHO=0
+
+#Parse command line arguments
+for i in "$@" ; do
+	case $i in
+		--interface=*)
+			LAN_IFACE="${i#*=}"
+			shift
+			;;
+		--snoop)
+			SNOOP=1
+			shift
+			;;
+		--echo)
+			ECHO=1
+			shift
+			;;
+		--version)
+			VERSION=1
+			shift
+			;;
+		*)
+	                echo "ip6neigh Service Script v${SVC_VERSION}"
+	                echo -e
+	                echo "This script is intended to be run only by its init script."
+	                echo "If you want to start ip6neigh, type:"
+	                echo -e
+        	        echo "ip6neigh start"
+	                echo -e
+	                exit 1
+			;;
+	esac
+done
 
 #Print version info if requested
-[ "$1" = '--version' ] && echo "ip6neigh Service Script v${SVC_VERSION}"
+if [ "$VERSION" -eq '1' ] ; then
+	echo "ip6neigh Service Script v${SVC_VERSION}."
+	exit 0
+fi
+
+#Check if interface exists
+if [ -z "$LAN_IFACE" ] ; then
+	echo "Please specify a lan interface." >&2
+	exit 1
+fi
+
+uci get network.$LAN_IFACE >/dev/null
+
+if [ "$?" -ne "0" ] ; then
+	echo "Invalid lan interface specified." >&2
+	exit 1
+fi
+
+#Setup environment
+readonly HOSTS_FILE="/tmp/hosts/ip6neigh.$LAN_IFACE"
+readonly CACHE_FILE="/tmp/ip6neigh.$LAN_IFACE.cache"
+readonly TEMP_FILE="/tmp/ip6neigh.$LAN_IFACE.tmp"
+readonly LEASE_FILE=`uci get dhcp.@dnsmasq[0].leasefile`
+
+if [ -z "$LEASE_FILE" ] ; then
+	LEASE_FILE='/tmp/dhcp.leases'
+fi
 
 #Load dependencies
 . /lib/functions.sh
 . /lib/functions/network.sh
 . /usr/lib/ip6neigh/ip6addr_functions.sh
-
-#Quit after printing the version info of the dependencies
-[ "$1" = '--version' ] && exit 0
-
-#Check if the user is trying to run this script on its own
-case "$1" in
-	'-s'|'-n');;
-	*)
-		echo "ip6neigh Service Script v${SVC_VERSION}"
-		echo -e
-		echo "This script is intended to be run only by its init script."
-		echo "If you want to start ip6neigh, type:"
-		echo -e
-		echo "ip6neigh start"
-		echo -e
-		
-		exit 1
-	;;
-esac
 
 #Writes error message and terminates the program.
 errormsg() {
@@ -64,7 +106,6 @@ errormsg() {
 [ -f "/etc/config/dhcp" ] || errormsg "The UCI config file /etc/config/dhcp is missing."
 reset_cb
 config_load ip6neigh
-config_get LAN_IFACE config lan_iface lan
 config_get WAN_IFACE config wan_iface wan6
 config_get DOMAIN config domain
 config_get ROUTER_NAME config router_name Router
@@ -232,10 +273,10 @@ logmsg() {
 	
 	if [ "$LOG" = "1" ]; then
 		#Log to syslog
-		logger -t ip6neigh "$1"
+		logger -t ip6neigh "[$LAN_DEV] $1"
 	else
 		#Log to file
-		echo "$(date) $1" >> "$LOG"
+		echo "$(date) [$LAN_DEV] $1" >> "$LOG"
 	fi
 	
 	#If -e argument was present, echo to stdout.
@@ -377,7 +418,7 @@ dhcp_name() {
 
 	#If couldn't find a match in DHCPv6 leases then look into the DHCPv4 leases file.
 	if [ "$DHCPV4_NAMES" -gt 0 ]; then
-		name=$(grep -m 1 -E " $mac [^ ]{7,15} ([^*])" /tmp/dhcp.leases | cut -d ' ' -f4)
+		name=$(grep -m 1 -E " $mac [^ ]{7,15} ([^*])" $LEASE_FILE | cut -d ' ' -f4)
 		
 		#Success getting name from DHCPv4.
 		if [ -n "$name" ]; then
@@ -754,11 +795,19 @@ config_host() {
 	local mac
 	config_get name "$1" name
 	config_get mac "$1" mac
+	config_get iface "$1" iface
 	
 	#Ignore entry if the minimum required options are missing.
-	if [ -z "$name" ] || [ -z "$mac" ]; then
+	if [ -z "$name" ] || [ -z "$mac" ] || [ -z "$iface" ] ; then
+		logmsg "Host entry will be ignored because either the name, the mac or the iface option is missing."
 		return 0;
 	fi
+
+	#Ignore entry if host is not reachable via monitored interface.
+	if [ "$iface" != "$LAN_IFACE" ] ; then
+		logmsg "Host entry $name will be ignored because it is connected to interface $iface."
+		return 0;
+	fi 
 	
 	#Load more options
 	local ip
@@ -862,11 +911,6 @@ load_neigh() {
 
 #Main service routine
 main_service() {
-	#Clears the log file if one is set
-	if [ "$LOG" != "0" ] && [ "$LOG" != "1" ]; then
-		> "$LOG"
-	fi
-
 	#Startup message
 	logmsg "Starting ip6neigh main service v${SVC_VERSION} for physdev $LAN_DEV with domain $DOMAIN"
 	
@@ -877,8 +921,8 @@ main_service() {
 	#Gets the IPv6 addresses from the LAN device.
 	lla_cidr=$(ip -6 addr show "$LAN_DEV" scope link 2>/dev/null | grep -m 1 'inet6' | awk '{print $2}')
 	ula_cidr=$(ip -6 addr show "$LAN_DEV" scope global 2>/dev/null | grep 'inet6 fd' | grep -m 1 -E -v 'dynamic|/128' | awk '{print $2}')
-	wula_cidr=$(ip -6 addr show "$LAN_DEV" scope global noprefixroute dynamic 2>/dev/null | grep 'inet6 fd' | awk '{print $2}')
-	gua_cidr=$(ip -6 addr show "$LAN_DEV" scope global noprefixroute 2>/dev/null | grep -m 1 'inet6 [^fd]' | awk '{print $2}')
+	wula_cidr=$(ip -6 addr show "$LAN_DEV" scope global dynamic 2>/dev/null | grep 'inet6 fd' | awk '{print $2}')
+	gua_cidr=$(ip -6 addr show "$LAN_DEV" scope global 2>/dev/null | grep -m 1 'inet6 [^fd]' | awk '{print $2}')
 	lla_address=$(echo "$lla_cidr" | cut -d "/" -f1)
 	ula_address=$(echo "$ula_cidr" | cut -d "/" -f1)
 	wula_address=$(echo "$wula_cidr" | cut -d "/" -f1)
@@ -1121,11 +1165,6 @@ snooping_service() {
 	return 0
 }
 
-#Check if echo flag is enabled
-[ "$2" = '-e' ] && ECHO=1
-
 #Check which service should run
-case "$1" in
-	'-s') main_service;;
-	'-n') snooping_service;;
-esac
+[ "$SNOOP" -eq '1' ] && snooping_service || main_service
+

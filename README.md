@@ -95,7 +95,7 @@ Example for the x86_64 platform:
    
 4. (Optional) Edit your current dhcp config file /etc/config/dhcp for adding predefined SLAAC hosts. 
 
-   Examples of predefined hosts at: [dhcp](https://github.com/AndreBL/ip6neigh/blob/master/etc/config/dhcp)
+   Examples of predefined hosts at: [dhcp](etc/config/dhcp)
 
 5. Start ip6neigh...
 
@@ -220,6 +220,7 @@ config host
 	#Copy the MAC address of the device.
 	option mac		'1a:41:8e:83:66:74'
 	option slaac	'1'
+	option iface	'lan'
 
 ```
 For Windows machines which do not use RFC 4862 EUI-64 SLAAC addressing (based on the MAC address):
@@ -234,6 +235,7 @@ config host
 	#Copy the interface identifier from the link-local address of
 	#of the device.
 	option slaac	'daa1:4554:747b:1f50'
+	option iface	'lan'
 
 ```
 Addresses with Stable (not Constant) Semantically Opaque IIDs (RFC 7217) cannot be currently added as predefined hosts (MacOS X 10.12, and iOS 10) if the prefix from the ISP is dynamic, as the host portion of the address (the IID) also changes when the prefix changes.

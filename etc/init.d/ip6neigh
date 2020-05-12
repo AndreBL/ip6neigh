@@ -4,10 +4,19 @@
 
 START=96
 
-readonly VERSION="1.7.0"
+readonly VERSION="2.0.0"
 readonly SBIN_PATH="/usr/sbin/"
 readonly SERVICE_NAME="ip6neigh-svc.sh"
 readonly SERVICE_SCRIPT="${SBIN_PATH}${SERVICE_NAME}"
+readonly CONFIG_FILE="/etc/config/ip6neigh"
+
+. /lib/functions.sh
+
+#Loads UCI configuration file
+[ -f "$CONFIG_FILE" ] || errormsg "The UCI config file $CONFIG_FILE is missing. A template is avaliable at https://github.com/AndreBL/ip6neigh ."
+reset_cb
+config_load ip6neigh
+config_get LAN_IFACES config lan_iface
 
 errormsg() {
 	local msg="Error: $1"
@@ -24,8 +33,11 @@ start() {
 	local snoop=$(uci get ip6neigh.config.dad_snoop 2>/dev/null)
 
 	SERVICE_DAEMONIZE=1
-	
-	service_start "$SERVICE_SCRIPT" -s
+
+	for LAN_IFACE in $LAN_IFACES ; do
+		service_start "$SERVICE_SCRIPT" --interface="$LAN_IFACE"
+	done
+
 	[ "$snoop" = '1' ] && service_start "$SERVICE_SCRIPT" -n
 
 	return 0
@@ -45,6 +57,10 @@ stop() {
 				done
 			kill "$ppid" 2>/dev/null
 		done
+
+	rm -f /tmp/ip6neigh.*.cache
+	rm -f /tmp/hosts/ip6neigh.*
+	killall -1 dnsmasq
 
 	return 0
 }

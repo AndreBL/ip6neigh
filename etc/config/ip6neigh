@@ -3,8 +3,9 @@
 
 config ip6neigh 'config'
 
-	# LAN interface logical name. Default: 'lan'
-	#option lan_iface	'lan'
+	# LAN interfaces' logical names. Default: 'lan'
+	#list lan_iface	'lan'
+	#list lan_iface	'lan2'
 	
 	# IPv6 WAN interface logical name. Default: 'wan6'
 	#option wan_iface	'wan6'
