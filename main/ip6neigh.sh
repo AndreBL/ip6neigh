@@ -21,7 +21,7 @@
 . /lib/functions/network.sh
 
 #Program definitions
-readonly CMD_TOOL_VERSION='1.7.2'
+readonly CMD_TOOL_VERSION='1.7.3'
 readonly HOSTS_FILE='/tmp/hosts/ip6neigh'
 readonly CACHE_FILE='/tmp/ip6neigh.cache'
 readonly SERVICE_NAME='ip6neigh-svc.sh'
@@ -398,7 +398,7 @@ whois_this() {
 #Download OUI database
 oui_download() {
 	echo "Downloading Nmap MAC prefixes..."
-	curl -# -S -f -k -o '/tmp/oui-raw.txt' 'https://linuxnet.ca/ieee/oui/nmap-mac-prefixes' || exit 2
+	curl -# -S -f -k -o '/tmp/oui-raw.txt' 'https://raw.githubusercontent.com/nmap/nmap/master/nmap-mac-prefixes' || exit 2
 
 	echo -e "\nApplying filters..."
 
