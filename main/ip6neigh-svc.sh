@@ -16,8 +16,11 @@
 #
 #	by André Lange		Dec 2016
 
+#	Delete in place using SED Oct 2023	v.1.7.2
+
+
 #Program definitions
-readonly SVC_VERSION='1.7.1'
+readonly SVC_VERSION='1.7.2'
 readonly CONFIG_FILE='/etc/config/ip6neigh'
 readonly HOSTS_FILE='/tmp/hosts/ip6neigh'
 readonly CACHE_FILE='/tmp/ip6neigh.cache'
@@ -177,12 +180,12 @@ rename() {
 	local newname="$2"
 
 	#Must save changes to another temp file and then move it over the main file.
-	sed "s/ ${oldname}/ ${newname}/g" "$HOSTS_FILE" > "$TEMP_FILE"
-	mv "$TEMP_FILE" "$HOSTS_FILE"
+	Change name in-place with SED
+	sed -i.bak "s/ ${oldname}/ ${newname}/g" "$HOSTS_FILE" 
 	
 	#Deletes the old cached entry if dynamic.
-	grep -v "0. ${oldname}$" "$CACHE_FILE" > "$TEMP_FILE"
-	mv "$TEMP_FILE" "$CACHE_FILE"
+	# Delete with SED
+	sed -i.bak "/0. ${oldname}$/d" "$CACHE_FILE"
 
 	logmsg "Renamed host: $oldname to $newname"
 	reload_pending=1
