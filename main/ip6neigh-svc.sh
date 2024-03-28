@@ -90,6 +90,14 @@ config_get FW_SCRIPT config fw_script
 config_get LOG config log 0
 config_get SETUP_RADVD config setup_radvd 0
 
+config_load dhcp
+config_get DHCPV6_LEASES odhcpd leasefile /tmp/hosts/odhcpd
+handle_dnsmasq() {
+    config_get DHCPV4_LEASES "$1" leasefile /tmp/dhcp.leases
+}
+config_foreach handle_dnsmasq dnsmasq
+unset handle_dnsmasq
+
 #Gets the physical devices
 network_get_physdev LAN_DEV "$LAN_IFACE"
 [ -n "$LAN_DEV" ] || errormsg "Could not get the name of the physical device for network interface ${LAN_IFACE}."
@@ -368,7 +376,7 @@ dhcp_name() {
 	#Look for a DHCPv6 lease with DUID-LL or DUID-LLT matching the neighbor's MAC address.
 	if [ "$DHCPV6_NAMES" -gt 0 ]; then
 		match=$(echo "$mac" | tr -d ':')
-		name=$(grep -m 1 -E "^# ${LAN_DEV} (00010001.{8}|00030001)${match} [^ ]* [^-]" /tmp/hosts/odhcpd | cut -d ' ' -f5)
+		name=$(grep -m 1 -E "^# ${LAN_DEV} (00010001.{8}|00030001)${match} [^ ]* [^-]" ${DHCPV6_LEASES} | cut -d ' ' -f5)
 		
 		#Success getting name from DHCPv6.
 		if [ -n "$name" ]; then
@@ -380,7 +388,7 @@ dhcp_name() {
 
 	#If couldn't find a match in DHCPv6 leases then look into the DHCPv4 leases file.
 	if [ "$DHCPV4_NAMES" -gt 0 ]; then
-		name=$(grep -m 1 -E " $mac [^ ]{7,15} ([^*])" /tmp/dhcp.leases | cut -d ' ' -f4)
+		name=$(grep -m 1 -E " $mac [^ ]{7,15} ([^*])" ${DHCPV4_LEASES} | cut -d ' ' -f4)
 		
 		#Success getting name from DHCPv4.
 		if [ -n "$name" ]; then
