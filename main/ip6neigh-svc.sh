@@ -70,7 +70,7 @@ config_load ip6neigh
 config_get LAN_IFACE config lan_iface lan
 config_get WAN_IFACE config wan_iface wan6
 config_get DOMAIN config domain
-config_get ROUTER_NAME config router_name Router
+config_get ROUTER_NAME config router_name
 config_get LLA_LABEL config lla_label
 config_get ULA_LABEL config ula_label
 config_get WULA_LABEL config wula_label
@@ -108,6 +108,12 @@ if [ -z "$DOMAIN" ]; then
 	DOMAIN=$(uci get dhcp.@dnsmasq[0].domain 2>/dev/null)
 fi
 if [ -z "$DOMAIN" ]; then DOMAIN="lan"; fi
+
+#Gets router hostname from /etc/config/system if not defined in ip6neigh config. Defaults to 'Router'.
+if [ -z "$ROUTER_NAME" ]; then
+	ROUTER_NAME=$(uci get system.@system[0].hostname 2>/dev/null)
+fi
+if [ -z "$ROUTER_NAME" ]; then ROUTER_NAME="Router"; fi
 
 #Asks dnsmasq to reload the hosts file if the pending flag is set
 reload_hosts() {
@@ -985,7 +991,7 @@ main_service() {
 	echo "#Predefined SLAAC addresses" >> "$HOSTS_FILE"
 
 	#Adds the router names
-	if [ -n "$ROUTER_NAME" ] && [ "$ROUTER_NAME" != "0" ]; then
+	if [ "$ROUTER_NAME" != "0" ]; then
 		logmsg "Generating names for the router's addresses"
 		[ -n "$lla_address" ] && add_static "$ROUTER_NAME" "$lla_address" "" 0
 		[ -n "$ula_address" ] && add_static "$ROUTER_NAME" "$ula_address" "" 1
