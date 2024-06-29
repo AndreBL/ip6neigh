@@ -20,7 +20,7 @@
 
 
 #Program definitions
-readonly SVC_VERSION='1.7.2'
+readonly SVC_VERSION='1.7.3'
 readonly CONFIG_FILE='/etc/config/ip6neigh'
 readonly HOSTS_FILE='/tmp/hosts/ip6neigh'
 readonly CACHE_FILE='/tmp/ip6neigh.cache'
