@@ -20,7 +20,8 @@ config ip6neigh 'config'
 	
 	# Name to be given to the router's IPv6 addresses. Corresponding labels will
 	# be appended for each scope of address. Use '0' if you want to disable this
-	# feature. Default: 'Router'
+	# feature. Will load the option router_name from /etc/config/system if not
+	# specified here. Default: 'Router'
 	#option router_name	'0'
 	
 	# Enable Duplicate Address Detection (DAD) snooping feature. Requires package
